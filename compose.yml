@@ -12,6 +12,8 @@ services:
           path: ./uv.lock
     ports:
       - "8000:8000"
+    volumes:
+      - ./app:/app/app
 
   postgres:
     image: postgres:17-alpine

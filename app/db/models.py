@@ -65,7 +65,7 @@ class Moderator(Base):
         Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
 
-    user: Mapped[User] = relationship("User", back_populates="moderators")
+    user: Mapped[User] = relationship("User")
 
 
 class Channel(Base):
