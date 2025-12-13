@@ -5,9 +5,9 @@ services:
       dockerfile: Dockerfile
     develop:
       watch:
-        - action: sync
-          path: ./app
-          target: /app/app
+        # - action: sync
+        #   path: ./app
+        #   target: /app/app
         - action: rebuild
           path: ./uv.lock
     ports:
