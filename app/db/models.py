@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     Date,
     ForeignKey,
@@ -9,8 +8,6 @@ from sqlalchemy import (
     MetaData,
     String,
     Text,
-    false,
-    func,
     text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -36,6 +33,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
+    is_moderator: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     channels: Mapped[list["Channel"]] = relationship(
         "Channel", back_populates="owner", cascade="all, delete-orphan"
@@ -52,20 +50,6 @@ class User(Base):
     views: Mapped[list["View"]] = relationship(
         "View", back_populates="user", cascade="all, delete-orphan"
     )
-
-
-class Moderator(Base):
-    __tablename__ = "moderators"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    created_at: Mapped[str] = mapped_column(
-        Date, nullable=False, server_default=func.now()
-    )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-
-    user: Mapped[User] = relationship("User", back_populates="moderators")
 
 
 class Channel(Base):

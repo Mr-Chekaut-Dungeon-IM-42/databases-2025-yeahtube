@@ -5,13 +5,15 @@ services:
       dockerfile: Dockerfile
     develop:
       watch:
-        - action: sync
-          path: ./app
-          target: /app/app
+        # - action: sync
+        #   path: ./app
+        #   target: /app/app
         - action: rebuild
           path: ./uv.lock
     ports:
       - "8000:8000"
+    volumes:
+      - ./app:/app/app
 
   postgres:
     image: postgres:17-alpine
