@@ -1,8 +1,8 @@
 from datetime import date
 
+from faker import Faker
 from sqlalchemy.orm import Session
 
-# adjust the import path to where your models live
 from db.models import (
     Channel,
     Comment,
@@ -17,135 +17,121 @@ from db.session import get_session
 
 
 def create_test_data(session: Session) -> None:
-    # Users
-    alice = User(
-        username="alice",
-        email="alice@example.test",
-        created_at=date(2021, 1, 1),
-    )
-    bob = User(
-        username="bob",
-        email="bob@example.test",
-        created_at=date(2021, 2, 1),
-    )
-    carol = User(
-        username="carol",
-        email="carol@example.test",
-        created_at=date(2021, 3, 1),
-    )
+    fake = Faker()
+    fake.unique.clear()
 
-    # Channels (owners are users)
-    alice_channel = Channel(
-        name="AliceChannel",
-        created_at=date(2021, 1, 2),
-        owner=alice,
-    )
-    bob_channel = Channel(
-        name="BobChannel",
-        created_at=date(2021, 2, 2),
-        owner=bob,
-    )
+    session.query(View).delete()
+    session.query(Subscription).delete()
+    session.query(PlaylistVideo).delete()
+    session.query(Playlist).delete()
+    session.query(Comment).delete()
+    session.query(Video).delete()
+    session.query(Channel).delete()
+    session.query(User).delete()
+    session.commit()
 
-    # Videos
-    vid1 = Video(
-        title="Welcome to AliceChannel",
-        description="Intro video",
-        uploaded_at=date(2021, 1, 3),
-        channel=alice_channel,
-    )
-    vid2 = Video(
-        title="Deep dive: SQLAlchemy tips",
-        description="A longer description but under limits",
-        uploaded_at=date(2021, 1, 10),
-        channel=alice_channel,
-    )
-    vid3 = Video(
-        title="Bob's first upload",
-        description=None,
-        uploaded_at=date(2021, 2, 5),
-        channel=bob_channel,
-    )
+    users = []
+    for _ in range(500):
+        try:
+            username = fake.unique.user_name()
+            email = fake.unique.email()
+            created_at = fake.date_between(start_date=date(2020, 1, 1), end_date=date.today())
+            is_moderator = fake.boolean(chance_of_getting_true=5)  # 5% moderators
+            user = User(username=username, email=email, created_at=created_at, is_moderator=is_moderator)
+            users.append(user)
+        except:
+            # fail = skip
+            pass
 
-    # Comments
-    c1 = Comment(
-        comment_text="Nice intro!",
-        commented_at=date(2021, 1, 4),
-        user=bob,
-        video=vid1,
-    )
-    c2 = Comment(
-        comment_text="Very helpful, thanks.",
-        commented_at=date(2021, 1, 11),
-        user=carol,
-        video=vid2,
-    )
-    c3 = Comment(
-        comment_text="Welcome Bob!",
-        commented_at=date(2021, 2, 6),
-        user=alice,
-        video=vid3,
-    )
+    session.add_all(users)
+    session.commit()
 
-    # Playlists
-    p_alice = Playlist(
-        name="Alice's favorites",
-        created_at=date(2021, 1, 15),
-        author=alice,
-    )
-    p_bob = Playlist(
-        name="Bob's picks",
-        created_at=date(2021, 2, 10),
-        author=bob,
-    )
+    channels = []
+    for user in users:
+        num_channels = fake.random_int(0, 3)
+        for _ in range(num_channels):
+            channel_name = fake.company()[:32]
+            created_at = fake.date_between(start_date=user.created_at, end_date=date.today())
+            channel = Channel(name=channel_name, created_at=created_at, owner=user)
+            channels.append(channel)
 
-    # Playlist entries (association objects)
-    pv1 = PlaylistVideo(playlist=p_alice, video=vid1)
-    pv2 = PlaylistVideo(playlist=p_alice, video=vid2)
-    pv3 = PlaylistVideo(playlist=p_bob, video=vid3)
-    pv4 = PlaylistVideo(playlist=p_bob, video=vid1)  # cross-channel inclusion
+    session.add_all(channels)
+    session.commit()
 
-    # Subscriptions (user <-> channel)
-    sub1 = Subscription(user=bob, channel=alice_channel)  # bob -> alice
-    sub2 = Subscription(user=carol, channel=alice_channel)  # carol -> alice
-    sub3 = Subscription(user=carol, channel=bob_channel)  # carol -> bob
+    videos = []
+    for channel in channels:
+        num_videos = fake.random_int(1, 10)
+        for _ in range(num_videos):
+            title = fake.sentence(nb_words=5)[:128]
+            description = fake.text(max_nb_chars=200) if fake.boolean() else None
+            uploaded_at = fake.date_between(start_date=channel.created_at, end_date=date.today())
+            video = Video(title=title, description=description, uploaded_at=uploaded_at, channel=channel)
+            videos.append(video)
 
-    # Views (user <-> video)
-    v1 = View(user=alice, video=vid3, watched_at=date(2021, 2, 6))
-    v2 = View(user=bob, video=vid1, watched_at=date(2021, 1, 4))
-    v3 = View(user=carol, video=vid2, watched_at=date(2021, 1, 12))
-    v4 = View(user=carol, video=vid1, watched_at=date(2021, 1, 13))
+    session.add_all(videos)
+    session.commit()
 
-    # Collect and persist
-    session.add_all(
-        [
-            alice,
-            bob,
-            carol,
-            alice_channel,
-            bob_channel,
-            vid1,
-            vid2,
-            vid3,
-            c1,
-            c2,
-            c3,
-            p_alice,
-            p_bob,
-            pv1,
-            pv2,
-            pv3,
-            pv4,
-            sub1,
-            sub2,
-            sub3,
-            v1,
-            v2,
-            v3,
-            v4,
-        ]
-    )
+    comments = []
+    for _ in range(2000):
+        user = fake.random_element(users)
+        video = fake.random_element(videos)
+        comment_text = fake.sentence(nb_words=10)[:2048]
+        commented_at = fake.date_between(start_date=max(user.created_at, video.uploaded_at), end_date=date.today())
+        comment = Comment(comment_text=comment_text, commented_at=commented_at, user=user, video=video)
+        comments.append(comment)
+
+    session.add_all(comments)
+    session.commit()
+
+    playlists = []
+    for user in users:
+        num_playlists = fake.random_int(0, 2)
+        for _ in range(num_playlists):
+            name = fake.sentence(nb_words=3)[:64]
+            created_at = fake.date_between(start_date=user.created_at, end_date=date.today())
+            playlist = Playlist(name=name, created_at=created_at, author=user)
+            playlists.append(playlist)
+
+    session.add_all(playlists)
+    session.commit()
+
+    playlist_entries = []
+    for playlist in playlists:
+        num_entries = fake.random_int(1, 10)
+        selected_videos = fake.random_elements(videos, length=num_entries, unique=True)
+        for video in selected_videos:
+            pv = PlaylistVideo(playlist=playlist, video=video)
+            playlist_entries.append(pv)
+
+    session.add_all(playlist_entries)
+    session.commit()
+
+    subscriptions = []
+    for user in users:
+        num_subs = fake.random_int(0, 20)
+        potential_channels = [c for c in channels if c.owner != user]
+        if potential_channels:
+            selected_channels = fake.random_elements(potential_channels, length=min(num_subs, len(potential_channels)), unique=True)
+            for channel in selected_channels:
+                sub = Subscription(user=user, channel=channel)
+                subscriptions.append(sub)
+
+    session.add_all(subscriptions)
+    session.commit()
+
+    views = []
+    for user in users:
+        num_views = fake.random_int(10, 100)
+        selected_videos = fake.random_elements(videos, length=min(num_views, len(videos)), unique=True)
+        for video in selected_videos:
+            watched_at = fake.date_between(start_date=max(user.created_at, video.uploaded_at), end_date=date.today())
+            view = View(user=user, video=video, watched_at=watched_at)
+            views.append(view)
+
+    session.add_all(views)
     session.commit()
 
 
 if __name__ == "__main__":
     create_test_data(get_session())
+
