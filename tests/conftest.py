@@ -24,7 +24,6 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 
 def override_get_session():
-    """Override the get_session dependency for tests"""
     db = TestingSessionLocal()
     try:
         yield db
@@ -34,7 +33,6 @@ def override_get_session():
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
-    """Create test database schema once per test session"""
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
@@ -42,7 +40,6 @@ def setup_test_database():
 
 @pytest.fixture
 def db():
-    """Provide a database session for tests"""
     session = TestingSessionLocal()
     try:
         yield session
@@ -58,9 +55,7 @@ def db():
 
 @pytest.fixture
 def client(db):
-    """Provide a test client with overridden database"""
     def override_get_session_with_db():
-        """Use the test's db session"""
         yield db
     
     app.dependency_overrides[get_session] = override_get_session_with_db
