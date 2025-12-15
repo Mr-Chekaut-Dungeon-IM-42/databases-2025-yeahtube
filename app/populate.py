@@ -40,7 +40,6 @@ def create_test_data(session: Session) -> None:
             user = User(username=username, email=email, created_at=created_at, is_moderator=is_moderator)
             users.append(user)
         except:
-            # fail = skip
             pass
 
     session.add_all(users)
