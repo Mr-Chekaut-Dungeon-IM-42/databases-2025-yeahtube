@@ -3,7 +3,7 @@ from datetime import date
 from faker import Faker
 from sqlalchemy.orm import Session
 
-from app.db.models import (
+from db.models import (
     Channel,
     Comment,
     Playlist,
@@ -13,7 +13,7 @@ from app.db.models import (
     Video,
     View,
 )
-from app.db.session import get_session
+from db.session import get_session
 
 
 def create_test_data(session: Session) -> None:
