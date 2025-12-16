@@ -9,3 +9,6 @@ migrate-downgrade-one:
 
 populate:
 	docker compose exec backend uv run python app/populate.py
+
+test:
+	docker compose exec -w /app/app backend uv run pytest -v
