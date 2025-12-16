@@ -11,6 +11,6 @@ RUN \
  apk add --no-cache postgresql-libs && \
  apk add --no-cache --virtual .build-deps gcc musl-dev postgresql-dev
  
-RUN uv sync --locked
+RUN uv sync --no-dev --locked
 
 CMD ["uv", "run", "fastapi", "dev", "--host", "0.0.0.0"]

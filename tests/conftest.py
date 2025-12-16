@@ -1,12 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.db.models import Base
 from app.db.session import get_session
+from app.main import app
 
 TEST_DATABASE_URL = "postgresql://admin:password@postgres:5432/test_db"
 DEFAULT_DATABASE_URL = "postgresql://admin:password@postgres:5432/postgres"
@@ -57,10 +57,11 @@ def db():
 def client(db):
     def override_get_session_with_db():
         yield db
-    
+
     app.dependency_overrides[get_session] = override_get_session_with_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
+
