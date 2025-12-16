@@ -1,26 +1,40 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select, func, extract, desc
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from datetime import datetime, date
 
 from app.db.models import User, View, Video, Channel, Comment, Subscription
 from app.db.session import DBDep
 
 router = APIRouter(prefix="/user")
-
-
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
     is_moderator: bool = False
 
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    created_at: date
+    is_moderator: bool
 
-@router.get("/test")
-async def test(db: DBDep):
+    model_config = ConfigDict(from_attributes=True)
+
+class VideoResponse(BaseModel): 
+    id: int
+    title: str
+    channel_id: int
+    uploaded_at: date
+
+    model_config = ConfigDict(from_attributes=True)
+
+@router.get("/", response_model=dict[str, list[UserResponse]])
+async def get_all_users(db: DBDep):
     users = db.execute(select(User)).scalars().all()
-    return {"users": [{"id": u.id, "username": u.username, "email": u.email, "created_at": u.created_at} for u in users]}
+    return {"users": users}
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
 async def create_user(user_data: UserCreate, db: DBDep):
     existing = db.execute(
         select(User).where(User.username == user_data.username)
@@ -53,16 +67,9 @@ async def create_user(user_data: UserCreate, db: DBDep):
     db.commit()
     db.refresh(user)
     
-    return {
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "created_at": user.created_at,
-        "is_moderator": user.is_moderator
-    }
+    return user
 
-
-@router.get("/recommendations/{user_id}")
+@router.get("/{user_id}/recommendations", response_model=dict[str, list[VideoResponse]])
 async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
     user_channel_views = (
         select(
@@ -106,16 +113,9 @@ async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
     videos = db.execute(query).scalars().all()
     
     return {
-        "videos": [
-            {
-                "id": v.id,
-                "title": v.title,
-                "channel_id": v.channel_id,
-                "created_at": v.uploaded_at
-            }
-            for v in videos
-        ]
+        "videos": videos
     }
+
 @router.get("/{user_id}/stats/views")
 async def get_user_year_views(user_id: int, db: DBDep):
     current_year = datetime.now().year

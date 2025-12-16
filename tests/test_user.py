@@ -4,7 +4,7 @@ from app.db.models import User, Channel, View, Video, Subscription
 from sqlalchemy import select
 
 
-def test_get_users_with_data(client, db):
+def test_get_users(client, db):
     """Test getting users with existing data"""
     user1 = User(
         username="alice",
@@ -21,7 +21,7 @@ def test_get_users_with_data(client, db):
     db.add_all([user1, user2])
     db.commit()
     
-    response = client.get("/user/test")
+    response = client.get("/user/")
     assert response.status_code == 200
     data = response.json()
     assert len(data["users"]) == 2
@@ -61,6 +61,13 @@ def test_create_user(client, db):
         "is_moderator": False
     })
     assert response.status_code == 400
+
+    response = client.post("/user/", json={
+        "username": "testuser",
+        "email": "not-a-valid-email",
+        "is_moderator": False
+    })
+    assert response.status_code == 422
 
 def test_recommendations(client, db):
     """Test that recommendations respect priority order: watched channels > subscriptions > total views"""
@@ -111,7 +118,7 @@ def test_recommendations(client, db):
     db.add_all([view_ch1_v2_1, view_ch1_v2_2, view_ch1_v1_1, view_popular1, view_popular2, view_popular3])
     db.commit()
 
-    response = client.get(f"/user/recommendations/{viewer.id}?limit=10")
+    response = client.get(f"/user/{viewer.id}/recommendations?limit=10")
     
     assert response.status_code == 200
     videos = response.json()["videos"]
