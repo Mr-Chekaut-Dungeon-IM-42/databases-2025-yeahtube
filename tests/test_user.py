@@ -10,13 +10,15 @@ def test_get_users(client, db):
         username="alice",
         email="alice@example.com",
         created_at=date(2024, 1, 1),
-        is_moderator=False
+        is_moderator=False,
+        is_deleted=False,
     )
     user2 = User(
         username="bob",
         email="bob@example.com",
         created_at=date(2024, 1, 2),
-        is_moderator=True
+        is_moderator=True,
+        is_deleted=False,
     )
     db.add_all([user1, user2])
     db.commit()
@@ -25,7 +27,7 @@ def test_get_users(client, db):
     assert response.status_code == 200
     data = response.json()
     assert len(data["users"]) == 2
-    
+
     usernames = [u["username"] for u in data["users"]]
     assert "alice" in usernames
     assert "bob" in usernames

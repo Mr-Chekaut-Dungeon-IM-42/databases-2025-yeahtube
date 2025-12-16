@@ -6,7 +6,7 @@ from datetime import datetime, date
 from app.db.models import User, View, Video, Channel, Comment, Subscription
 from app.db.session import DBDep
 
-router = APIRouter(prefix="/user")
+router = APIRouter(tags=["user"], prefix="/user")
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     created_at: date
     is_moderator: bool
+    is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)
 
