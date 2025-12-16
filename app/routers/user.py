@@ -19,6 +19,7 @@ class UserCreate(BaseModel):
 async def test(db: DBDep):
     users = db.execute(select(User)).scalars().all()
     return {"users": [{"id": u.id, "username": u.username, "email": u.email, "created_at": u.created_at} for u in users]}
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(user_data: UserCreate, db: DBDep):
     existing = db.execute(
@@ -166,6 +167,7 @@ async def get_user_favorite_creator(user_id: int, db: DBDep):
             "favorite_creator": None,
             "message": "No views found for this year"
     }
+
 @router.get("/{user_id}/stats/reactions")
 async def get_user_year_reactions(user_id: int, db: DBDep):
     """ Currently counts comments only """
@@ -185,6 +187,7 @@ async def get_user_year_reactions(user_id: int, db: DBDep):
         "year": current_year, 
         "total_reactions": count
     }
+
 @router.get("/{user_id}/stats/averageViewTime")
 async def get_user_avg_view_time(user_id: int, db: DBDep):
     """ Currently returns nothing """
