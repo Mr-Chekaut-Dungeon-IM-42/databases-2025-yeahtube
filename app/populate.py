@@ -1,11 +1,12 @@
-from datetime import date
+import random
+from datetime import date, datetime
 
-from faker import Faker
-from sqlalchemy.orm import Session
-
-from app.db.models import (
+from db.models import (
     Channel,
+    ChannelStrike,
     Comment,
+    PaidSubscription,
+    PaidSubTier,
     Playlist,
     PlaylistVideo,
     Subscription,
@@ -13,7 +14,9 @@ from app.db.models import (
     Video,
     View,
 )
-from app.db.session import get_session
+from db.session import get_session
+from faker import Faker
+from sqlalchemy.orm import Session
 
 
 def create_test_data(session: Session) -> None:
@@ -79,6 +82,18 @@ def create_test_data(session: Session) -> None:
 
     session.add_all(videos)
 
+    strikes = [
+        ChannelStrike(
+            issued_at=fake.date_time_this_decade(),
+            duration=fake.time_delta(end_datetime="+90d"),
+            channel=random.choice(channels),
+            video=random.choice(videos) if fake.boolean(80) else None,
+        )
+        for _ in range(len(channels) * 3)
+    ]
+
+    session.add_all(strikes)
+
     comments = []
     for _ in range(2000):
         user = fake.random_element(users)
@@ -118,6 +133,12 @@ def create_test_data(session: Session) -> None:
     session.add_all(playlist_entries)
 
     subscriptions = []
+    TIERS = [
+        PaidSubTier.BRONZE,
+        PaidSubTier.SILVER,
+        PaidSubTier.GOLD,
+        PaidSubTier.DIAMOND,
+    ]
     for user in users:
         num_subs = fake.random_int(0, 20)
         potential_channels = [c for c in channels if c.owner != user]
@@ -128,7 +149,19 @@ def create_test_data(session: Session) -> None:
                 unique=True,
             )
             for channel in selected_channels:
-                sub = Subscription(user=user, channel=channel)
+                num_paid_subs = fake.random_int(0, 10)
+                paid_sub_dates = [fake.date_time_this_decade(before_now=True)]
+                for _ in range(num_paid_subs * 2 - 1):
+                    paid_sub_dates.append(
+                        fake.date_time_between(paid_sub_dates[-1], datetime.now())
+                    )
+                paid_subs = [
+                    PaidSubscription(
+                        active_since=since, active_to=to, tier=random.choice(TIERS)
+                    )
+                    for since, to in zip(paid_sub_dates[::2], paid_sub_dates[1::2])
+                ]
+                sub = Subscription(user=user, channel=channel, paid_subs=paid_subs)
                 subscriptions.append(sub)
 
     session.add_all(subscriptions)
