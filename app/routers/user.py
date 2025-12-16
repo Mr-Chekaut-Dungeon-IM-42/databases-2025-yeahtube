@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.db.models import User
 from app.db.session import DBDep
 
-router = APIRouter(prefix="/user")
+router = APIRouter(tags=["user"], prefix="/user")
 
 
 @router.get("/test")
@@ -21,4 +21,3 @@ async def test(db: DBDep):
             for u in users
         ]
     }
-
