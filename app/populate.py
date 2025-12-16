@@ -3,7 +3,7 @@ from datetime import date
 from faker import Faker
 from sqlalchemy.orm import Session
 
-from app.db.models import (
+from db.models import (
     Channel,
     Comment,
     Playlist,
@@ -13,7 +13,7 @@ from app.db.models import (
     Video,
     View,
 )
-from app.db.session import get_session
+from db.session import get_session
 
 
 def create_test_data(session: Session) -> None:
@@ -37,11 +37,13 @@ def create_test_data(session: Session) -> None:
             start_date=date(2020, 1, 1), end_date=date.today()
         )
         is_moderator = fake.boolean(chance_of_getting_true=5)  # 5% moderators
+        is_deleted = fake.boolean(chance_of_getting_true=3)  # 3% deleted users
         user = User(
             username=username,
             email=email,
             created_at=created_at,
             is_moderator=is_moderator,
+            is_deleted=is_deleted
         )
         users.append(user)
 

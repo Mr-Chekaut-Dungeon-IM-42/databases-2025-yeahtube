@@ -34,6 +34,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
     is_moderator: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     channels: Mapped[list["Channel"]] = relationship(
         "Channel", back_populates="owner", cascade="all, delete-orphan"
