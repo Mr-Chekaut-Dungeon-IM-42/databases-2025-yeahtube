@@ -1,81 +1,20 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select, func, extract, desc
-from pydantic import BaseModel, EmailStr, ConfigDict
-from datetime import datetime, date
+from datetime import datetime
 
 from app.db.models import User, View, Video, Channel, Comment, Subscription
 from app.db.session import DBDep
+from app.schemas.schemas import UserCreate, UserUpdate, UserDetailedResponse, VideoResponse
 
 router = APIRouter(tags=["user"], prefix="/user")
-class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    is_moderator: bool = False
 
-class UserUpdate(BaseModel):
-    username: str | None = None
-    email: EmailStr | None = None
-    is_moderator: bool | None = None
 
-class UserResponse(BaseModel):
-    id: int
-    username: str
-    email: EmailStr
-    created_at: date
-    is_moderator: bool
-    is_deleted: bool
-
-    model_config = ConfigDict(from_attributes=True)
-
-class VideoResponse(BaseModel): 
-    id: int
-    title: str
-    channel_id: int
-    uploaded_at: date
-
-    model_config = ConfigDict(from_attributes=True)
-
-@router.get("/", response_model=dict[str, list[UserResponse]])
+@router.get("/", response_model=dict[str, list[UserDetailedResponse]])
 async def get_all_users(db: DBDep):
     users = db.execute(select(User).where(User.is_deleted == False)).scalars().all()
     return {"users": users}
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
-async def create_user(user_data: UserCreate, db: DBDep):
-    existing = db.execute(
-        select(User).where(User.username == user_data.username)
-    ).scalar_one_or_none()
-    
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already exists"
-        )
-
-    existing_email = db.execute(
-        select(User).where(User.email == user_data.email)
-    ).scalar_one_or_none()
-    
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already exists"
-        )
-
-    user = User(
-        username=user_data.username,
-        email=user_data.email,
-        created_at=date.today(),
-        is_moderator=user_data.is_moderator
-    )
-    
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    return user
-
-@router.patch("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=UserDetailedResponse)
 async def update_user(user_id: int, user_data: UserUpdate, db: DBDep):
     user = db.get(User, user_id)
     
@@ -117,6 +56,7 @@ async def update_user(user_id: int, user_data: UserUpdate, db: DBDep):
     
     return user
 
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def soft_delete_user(user_id: int, db: DBDep):
     user = db.get(User, user_id)
@@ -131,6 +71,7 @@ async def soft_delete_user(user_id: int, db: DBDep):
     db.commit()
     
     return None
+
 
 @router.get("/{user_id}/recommendations", response_model=dict[str, list[VideoResponse]])
 async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
@@ -187,6 +128,7 @@ async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
         "videos": videos
     }
 
+
 @router.get("/{user_id}/stats/views")
 async def get_user_year_views(user_id: int, db: DBDep):
     current_year = datetime.now().year
@@ -201,6 +143,7 @@ async def get_user_year_views(user_id: int, db: DBDep):
     count = db.execute(query).scalar() or 0
     
     return {"user_id": user_id, "year": current_year, "total_views": count}
+
 
 @router.get("/{user_id}/stats/favoriteCreator")
 async def get_user_favorite_creator(user_id: int, db: DBDep):
@@ -239,6 +182,7 @@ async def get_user_favorite_creator(user_id: int, db: DBDep):
             "message": "No views found for this year"
     }
 
+
 @router.get("/{user_id}/stats/reactions")
 async def get_user_year_reactions(user_id: int, db: DBDep):
     """ Currently counts comments only """
@@ -258,6 +202,7 @@ async def get_user_year_reactions(user_id: int, db: DBDep):
         "year": current_year, 
         "total_reactions": count
     }
+
 
 @router.get("/{user_id}/stats/averageViewTime")
 async def get_user_avg_view_time(user_id: int, db: DBDep):
