@@ -14,9 +14,10 @@ from db.models import (
     Video,
     View,
 )
-from db.session import get_session
+from db.session import SessionLocal
 from faker import Faker
 from sqlalchemy.orm import Session
+from utils.auth import get_password_hash
 
 
 def create_test_data(session: Session) -> None:
@@ -177,7 +178,18 @@ def create_test_data(session: Session) -> None:
                 start_date=max(user.created_at, video.uploaded_at),
                 end_date=date.today(),
             )
-            view = View(user=user, video=video, watched_at=watched_at)
+            watched_percentage = fake.pyfloat(min_value=0.0, max_value=1.0)
+            reaction = fake.random_element(
+                elements=[None, None, None, "Liked", "Disliked"]
+            )
+
+            view = View(
+                user=user,
+                video=video,
+                watched_at=watched_at,
+                watched_percentage=watched_percentage,
+                reaction=reaction,
+            )
             views.append(view)
 
     session.add_all(views)

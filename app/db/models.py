@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime, timedelta
+from typing import Literal
 
 from sqlalchemy import (
     Boolean,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
@@ -60,6 +62,25 @@ class User(Base):
     views: Mapped[list["View"]] = relationship(
         "View", back_populates="user", cascade="all, delete-orphan"
     )
+
+
+class ChannelStrike(Base):
+    __tablename__ = "channel_strikes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    duration: Mapped[timedelta] = mapped_column(Interval)
+    video_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("videos.id"), nullable=True
+    )
+    channel_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("channels.id", ondelete="CASCADE")
+    )
+
+    video: Mapped[Video | None] = relationship(
+        "Video", back_populates="channel_strikes"
+    )
+    channel: Mapped[Channel] = relationship("Channel", back_populates="channel_strikes")
 
 
 class ChannelStrike(Base):
@@ -238,6 +259,13 @@ class PaidSubscription(Base):
 class View(Base):
     __tablename__ = "views"
 
+    __table_args__ = (
+        CheckConstraint(
+            "watched_percentage >= 0.0 AND watched_percentage <= 1.0",
+            name="ck_views_watched_amount",
+        ),
+    )
+
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
@@ -246,6 +274,13 @@ class View(Base):
     )
     watched_at: Mapped[str] = mapped_column(
         Date, nullable=False, server_default=text("CURRENT_DATE")
+    )
+    watched_percentage: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0
+    )
+
+    reaction: Mapped[Literal["Liked", "Disliked"] | None] = mapped_column(
+        String, nullable=True
     )
 
     user: Mapped[User] = relationship("User", back_populates="views")
