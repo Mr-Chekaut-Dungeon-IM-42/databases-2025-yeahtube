@@ -9,6 +9,7 @@ from db.models import (
     PaidSubTier,
     Playlist,
     PlaylistVideo,
+    Report,
     Subscription,
     User,
     Video,
@@ -24,6 +25,7 @@ def create_test_data(session: Session) -> None:
     fake = Faker()
     fake.unique.clear()
 
+    session.query(Report).delete()
     session.query(View).delete()
     session.query(Subscription).delete()
     session.query(PlaylistVideo).delete()
@@ -33,6 +35,8 @@ def create_test_data(session: Session) -> None:
     session.query(Channel).delete()
     session.query(User).delete()
 
+    default_hashed_password = get_password_hash("testpassword123")
+
     users = []
     for _ in range(500):
         username = fake.unique.user_name()
@@ -41,11 +45,16 @@ def create_test_data(session: Session) -> None:
             start_date=date(2020, 1, 1), end_date=date.today()
         )
         is_moderator = fake.boolean(chance_of_getting_true=5)  # 5% moderators
+        is_deleted = fake.boolean(chance_of_getting_true=3)  # 3% deleted users
+        is_banned = fake.boolean(chance_of_getting_true=2)  # 2% banned users
         user = User(
             username=username,
             email=email,
+            hashed_password=default_hashed_password,
             created_at=created_at,
             is_moderator=is_moderator,
+            is_deleted=is_deleted,
+            is_banned=is_banned,
         )
         users.append(user)
 
@@ -193,8 +202,33 @@ def create_test_data(session: Session) -> None:
             views.append(view)
 
     session.add_all(views)
+
+    reports = []
+    for _ in range(300):
+        reporter = fake.random_element(users)
+        video = fake.random_element(videos)
+        reason = fake.sentence(nb_words=15)[:512]
+        created_at = fake.date_between(
+            start_date=max(reporter.created_at, video.uploaded_at),
+            end_date=date.today(),
+        )
+        is_resolved = fake.boolean(chance_of_getting_true=40)
+        report = Report(
+            reason=reason,
+            created_at=created_at,
+            is_resolved=is_resolved,
+            reporter=reporter,
+            video=video,
+        )
+        reports.append(report)
+
+    session.add_all(reports)
     session.commit()
 
 
 if __name__ == "__main__":
-    create_test_data(get_session())
+    session = SessionLocal()
+    try:
+        create_test_data(session)
+    finally:
+        session.close()

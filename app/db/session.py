@@ -14,8 +14,12 @@ engine = create_engine(DB_URL, future=True)
 SessionLocal = sessionmaker(bind=engine, class_=Session, autoflush=False, future=True)
 
 
-def get_session() -> Session:
-    return SessionLocal()
+def get_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 DBDep = Annotated[Session, Depends(get_session)]
