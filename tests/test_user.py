@@ -71,13 +71,116 @@ def test_create_user(client, db):
     })
     assert response.status_code == 422
 
+def test_update_user(client, db):
+    user = User(
+        username="originaluser",
+        email="original@example.com",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+    )
+    db.add(user)
+    db.commit()
+
+    response = client.patch(f"/user/{user.id}", json={
+        "username": "updateduser"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "updateduser"
+    assert data["email"] == "original@example.com"
+
+    response = client.patch(f"/user/{user.id}", json={
+        "username": "finaluser",
+        "email": "final@example.com",
+        "is_moderator": True
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["username"] == "finaluser"
+    assert data["email"] == "final@example.com"
+    assert data["is_moderator"] == True
+
+    other_user = User(
+        username="otheruser",
+        email="other@example.com",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+    )
+    db.add(other_user)
+    db.commit()
+    
+    response = client.patch(f"/user/{user.id}", json={
+        "username": "otheruser"
+    })
+    assert response.status_code == 400
+
+    response = client.patch("/user/99999", json={
+        "username": "newname"
+    })
+    assert response.status_code == 404
+
+    user.is_deleted = True
+    db.commit()
+    
+    response = client.patch(f"/user/{user.id}", json={
+        "username": "nope"
+    })
+    assert response.status_code == 410
+
+def test_soft_delete_user(client, db):
+    user = User(
+        username="deleteuser",
+        email="delete@example.com",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+    )
+    db.add(user)
+    db.commit()
+    user_id = user.id
+
+    response = client.delete(f"/user/{user_id}")
+    assert response.status_code == 204
+
+    db.refresh(user)
+    assert user.is_deleted == True
+
+    response = client.delete(f"/user/{user_id}")
+    assert response.status_code == 410
+
+    response = client.patch(f"/user/{user_id}", json={
+        "username": "newname"
+    })
+    assert response.status_code == 410
+
+    response = client.delete("/user/99999")
+    assert response.status_code == 404
+
 def test_recommendations(client, db):
     """Test that recommendations respect priority order: watched channels > subscriptions > total views"""
 
-    viewer = User(username="viewer", email="viewer@example.com", created_at=date.today(), is_moderator=False)
-    creator1 = User(username="creator1", email="creator1@example.com", created_at=date.today(), is_moderator=False)
-    creator2 = User(username="creator2", email="creator2@example.com", created_at=date.today(), is_moderator=False)
-    creator3 = User(username="creator3", email="creator3@example.com", created_at=date.today(), is_moderator=False)
+    response = client.get("/user/99999/recommendations")
+    assert response.status_code == 404
+
+    deleted_user = User(
+        username="deleteduser",
+        email="deleted@example.com",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=True,
+    )
+    db.add(deleted_user)
+    db.commit()
+    
+    response = client.get(f"/user/{deleted_user.id}/recommendations")
+    assert response.status_code == 410
+
+    viewer = User(username="viewer", email="viewer@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    creator1 = User(username="creator1", email="creator1@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    creator2 = User(username="creator2", email="creator2@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    creator3 = User(username="creator3", email="creator3@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
     db.add_all([viewer, creator1, creator2, creator3])
     db.commit()
 
@@ -103,9 +206,9 @@ def test_recommendations(client, db):
     db.add(subscription)
     db.commit()
 
-    other_user1 = User(username="other1", email="other1@example.com", created_at=date.today(), is_moderator=False)
-    other_user2 = User(username="other2", email="other2@example.com", created_at=date.today(), is_moderator=False)
-    other_user3 = User(username="other3", email="other3@example.com", created_at=date.today(), is_moderator=False)
+    other_user1 = User(username="other1", email="other1@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    other_user2 = User(username="other2", email="other2@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    other_user3 = User(username="other3", email="other3@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
     db.add_all([other_user1, other_user2, other_user3])
     db.commit()
     
