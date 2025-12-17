@@ -37,7 +37,7 @@ class VideoResponse(BaseModel):
 
 @router.get("/", response_model=dict[str, list[UserResponse]])
 async def get_all_users(db: DBDep):
-    users = db.execute(select(User)).scalars().all()
+    users = db.execute(select(User).where(User.is_deleted == False)).scalars().all()
     return {"users": users}
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserResponse)

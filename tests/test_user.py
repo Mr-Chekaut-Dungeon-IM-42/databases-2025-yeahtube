@@ -5,7 +5,6 @@ from sqlalchemy import select
 
 
 def test_get_users(client, db):
-    """Test getting users with existing data"""
     user1 = User(
         username="alice",
         email="alice@example.com",
@@ -20,17 +19,24 @@ def test_get_users(client, db):
         is_moderator=True,
         is_deleted=False,
     )
-    db.add_all([user1, user2])
+    deleted_user = User(
+        username="deleted",
+        email="deleted@example.com",
+        created_at=date(2024, 1, 3),
+        is_moderator=False,
+        is_deleted=True,
+    )
+    db.add_all([user1, user2, deleted_user])
     db.commit()
     
     response = client.get("/user/")
     assert response.status_code == 200
     data = response.json()
     assert len(data["users"]) == 2
-
     usernames = [u["username"] for u in data["users"]]
     assert "alice" in usernames
     assert "bob" in usernames
+    assert "deleted" not in usernames
 
 def test_create_user(client, db):
     response = client.post("/user/", json={
