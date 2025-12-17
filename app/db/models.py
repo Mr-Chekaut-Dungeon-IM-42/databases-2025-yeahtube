@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from sqlalchemy import (
     CheckConstraint,
     Date,
@@ -9,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     text,
+    Float,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -185,6 +188,10 @@ class Subscription(Base):
 class View(Base):
     __tablename__ = "views"
 
+    __table_args__ = (
+        CheckConstraint("watched_percentage >= 0.0 AND watched_percentage <= 1.0", name="ck_views_watched_amount"),
+    )
+
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
@@ -194,6 +201,9 @@ class View(Base):
     watched_at: Mapped[str] = mapped_column(
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
+    watched_percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    reaction: Mapped[Literal["Liked", "Disliked"]| None] = mapped_column(String, nullable=True)
 
     user: Mapped[User] = relationship("User", back_populates="views")
     video: Mapped[Video] = relationship("Video", back_populates="views")
