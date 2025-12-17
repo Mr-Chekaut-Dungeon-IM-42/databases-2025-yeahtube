@@ -7,7 +7,7 @@ from app.auth import create_access_token, get_password_hash, verify_password
 from app.db.models import User
 from app.db.session import DBDep
 from app.dependencies import get_current_user
-from app.schemas import Token, UserLogin, UserOut, UserRegister
+from app.schemas.schemas import Token, UserLogin, UserOut, UserRegister
 
 router = APIRouter(tags=["auth"], prefix="/auth")
 

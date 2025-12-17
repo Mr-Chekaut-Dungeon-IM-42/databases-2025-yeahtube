@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from app.db.models import Channel, Report, User, Video
 from app.db.session import DBDep
 from app.dependencies import require_admin
-from app.schemas import (
+from app.schemas.schemas import (
     ChannelAnalyticsListResponse,
     ChannelAnalyticsResponse,
     ChannelInfo,
