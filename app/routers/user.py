@@ -12,6 +12,11 @@ class UserCreate(BaseModel):
     email: EmailStr
     is_moderator: bool = False
 
+class UserUpdate(BaseModel):
+    username: str | None = None
+    email: EmailStr | None = None
+    is_moderator: bool | None = None
+
 class UserResponse(BaseModel):
     id: int
     username: str
