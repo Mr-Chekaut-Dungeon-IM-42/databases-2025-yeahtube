@@ -80,10 +80,10 @@ async def update_user(user_id: int, user_data: UserUpdate, db: DBDep):
     user = db.get(User, user_id)
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
     if user.is_deleted:
-        raise HTTPException(status_code=410, detail="User has been deleted")
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="User has been deleted")
     
     if user_data.username is not None:
         existing = db.execute(
@@ -122,10 +122,10 @@ async def soft_delete_user(user_id: int, db: DBDep):
     user = db.get(User, user_id)
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
     if user.is_deleted:
-        raise HTTPException(status_code=410, detail="User already deleted")
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="User already deleted")
     
     user.is_deleted = True
     db.commit()
@@ -137,10 +137,10 @@ async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
     
     user = db.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
     if user.is_deleted:
-        raise HTTPException(status_code=410, detail="User has been deleted")
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="User has been deleted")
     
     user_channel_views = (
         select(
@@ -192,7 +192,7 @@ async def get_user_year_views(user_id: int, db: DBDep):
     current_year = datetime.now().year
     
     if not db.get(User, user_id):
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     query = select(func.count(View.video_id)).where(
         View.user_id == user_id,
@@ -207,7 +207,7 @@ async def get_user_favorite_creator(user_id: int, db: DBDep):
     current_year = datetime.now().year
 
     if not db.get(User, user_id):
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     query = (
         select(Channel.name, func.count(View.video_id).label("view_count"))
@@ -245,7 +245,7 @@ async def get_user_year_reactions(user_id: int, db: DBDep):
     current_year = datetime.now().year
 
     if not db.get(User, user_id):
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     query = select(func.count(Comment.id)).where(
         Comment.user_id == user_id,
@@ -263,7 +263,7 @@ async def get_user_year_reactions(user_id: int, db: DBDep):
 async def get_user_avg_view_time(user_id: int, db: DBDep):
     """ Currently returns nothing """
     if not db.get(User, user_id):
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         
     return {
         "user_id": user_id,
