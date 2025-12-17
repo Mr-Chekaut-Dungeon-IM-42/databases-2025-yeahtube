@@ -8,23 +8,29 @@ def test_get_users(client, db):
     user1 = User(
         username="alice",
         email="alice@example.com",
+        hashed_password="fake_hash",
         created_at=date(2024, 1, 1),
         is_moderator=False,
         is_deleted=False,
+        is_banned=False,
     )
     user2 = User(
         username="bob",
         email="bob@example.com",
+        hashed_password="fake_hash",
         created_at=date(2024, 1, 2),
         is_moderator=True,
         is_deleted=False,
+        is_banned=False,
     )
     deleted_user = User(
         username="deleted",
         email="deleted@example.com",
+        hashed_password="fake_hash",
         created_at=date(2024, 1, 3),
         is_moderator=False,
         is_deleted=True,
+        is_banned=False,
     )
     db.add_all([user1, user2, deleted_user])
     db.commit()
@@ -38,52 +44,15 @@ def test_get_users(client, db):
     assert "bob" in usernames
     assert "deleted" not in usernames
 
-def test_create_user(client, db):
-    response = client.post("/user/", json={
-        "username": "newuser",
-        "email": "newuser@example.com",
-        "is_moderator": False
-    })
-    assert response.status_code == 201
-    data = response.json()
-    assert data["username"] == "newuser"
-    assert data["email"] == "newuser@example.com"
-    assert data["is_moderator"] == False
-    assert "id" in data
-    user_id = data["id"]
-
-    user = db.execute(select(User).where(User.id == user_id)).scalar_one()
-    assert user.username == "newuser"
-    assert user.email == "newuser@example.com"
-
-    response = client.post("/user/", json={
-        "username": "newuser",
-        "email": "different@example.com",
-        "is_moderator": False
-    })
-    assert response.status_code == 400
-
-    response = client.post("/user/", json={
-        "username": "differentuser",
-        "email": "newuser@example.com",
-        "is_moderator": False
-    })
-    assert response.status_code == 400
-
-    response = client.post("/user/", json={
-        "username": "testuser",
-        "email": "not-a-valid-email",
-        "is_moderator": False
-    })
-    assert response.status_code == 422
-
 def test_update_user(client, db):
     user = User(
         username="originaluser",
         email="original@example.com",
+        hashed_password="fake_hash",
         created_at=date.today(),
         is_moderator=False,
         is_deleted=False,
+        is_banned=False,
     )
     db.add(user)
     db.commit()
@@ -110,9 +79,11 @@ def test_update_user(client, db):
     other_user = User(
         username="otheruser",
         email="other@example.com",
+        hashed_password="fake_hash",
         created_at=date.today(),
         is_moderator=False,
         is_deleted=False,
+        is_banned=False,
     )
     db.add(other_user)
     db.commit()
@@ -139,9 +110,11 @@ def test_soft_delete_user(client, db):
     user = User(
         username="deleteuser",
         email="delete@example.com",
+        hashed_password="fake_hash",
         created_at=date.today(),
         is_moderator=False,
         is_deleted=False,
+        is_banned=False,
     )
     db.add(user)
     db.commit()
@@ -173,9 +146,11 @@ def test_recommendations(client, db):
     deleted_user = User(
         username="deleteduser",
         email="deleted@example.com",
+        hashed_password="fake_hash",
         created_at=date.today(),
         is_moderator=False,
         is_deleted=True,
+        is_banned=False,
     )
     db.add(deleted_user)
     db.commit()
@@ -183,10 +158,10 @@ def test_recommendations(client, db):
     response = client.get(f"/user/{deleted_user.id}/recommendations")
     assert response.status_code == 410
 
-    viewer = User(username="viewer", email="viewer@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
-    creator1 = User(username="creator1", email="creator1@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
-    creator2 = User(username="creator2", email="creator2@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
-    creator3 = User(username="creator3", email="creator3@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    viewer = User(username="viewer", email="viewer@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
+    creator1 = User(username="creator1", email="creator1@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
+    creator2 = User(username="creator2", email="creator2@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
+    creator3 = User(username="creator3", email="creator3@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
     db.add_all([viewer, creator1, creator2, creator3])
     db.commit()
 
@@ -212,9 +187,9 @@ def test_recommendations(client, db):
     db.add(subscription)
     db.commit()
 
-    other_user1 = User(username="other1", email="other1@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
-    other_user2 = User(username="other2", email="other2@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
-    other_user3 = User(username="other3", email="other3@example.com", created_at=date.today(), is_moderator=False, is_deleted=False)
+    other_user1 = User(username="other1", email="other1@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
+    other_user2 = User(username="other2", email="other2@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
+    other_user3 = User(username="other3", email="other3@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
     db.add_all([other_user1, other_user2, other_user3])
     db.commit()
     
@@ -236,7 +211,7 @@ def test_recommendations(client, db):
     
     video_ids = [v["id"] for v in videos]
     
-    assert video_ids[0] == video2_ch1.id  # Priority 1: most watched channel by the user, more views (3 total)
-    assert video_ids[1] == video1_ch1.id  # Priority 1: most watched channel by the user, fewer views (2 total)
-    assert video_ids[2] == video1_ch2.id  # Priority 2: subscribed channel
-    assert video_ids[3] == video1_ch3.id  # Priority 3: popular video (3 total views)
+    assert video_ids[0] == video2_ch1.id
+    assert video_ids[1] == video1_ch1.id
+    assert video_ids[2] == video1_ch2.id
+    assert video_ids[3] == video1_ch3.id

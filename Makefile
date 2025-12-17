@@ -8,7 +8,7 @@ migrate-downgrade-one:
 	docker compose exec backend uv run alembic -c app/alembic.ini downgrade -1
 
 populate:
-	docker compose exec backend uv run python app/populate.py
+	docker compose exec backend uv run python -m app.utils.populate
 
 test:
 	docker compose exec -w /app/app backend uv run pytest -v
