@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
 from app.db.models import Channel, Report, User, Video
 from app.db.session import DBDep
+from app.dependencies import require_admin
 from app.schemas import (
     ChannelAnalyticsListResponse,
     ChannelAnalyticsResponse,
@@ -23,7 +24,11 @@ from app.schemas import (
     ReportResponse,
 )
 
-router = APIRouter(tags=["admin"], prefix="/admin")
+router = APIRouter(
+    tags=["admin"],
+    prefix="/admin",
+    dependencies=[Depends(require_admin)]
+)
 
 
 @router.patch("/video/{video_id}/deactivate", response_model=VideoDeactivateResponse)

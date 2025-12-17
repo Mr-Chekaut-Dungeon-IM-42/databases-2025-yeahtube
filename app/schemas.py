@@ -133,4 +133,34 @@ class ChannelAnalyticsListResponse(BaseModel):
     analytics: list[ChannelAnalyticsResponse]
     count: int
     min_reports_threshold: int
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class UserRegister(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    email: str = Field(max_length=64)
+    password: str = Field(min_length=6)
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+    user_id: int
+    username: str
+    is_moderator: bool
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: str
+    is_moderator: bool
+    is_banned: bool
+    created_at: str
     
