@@ -48,10 +48,9 @@ async def register(user_data: UserRegister, db: DBDep) -> UserOut:
         )
         
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        db.flush()
         
-        return UserOut(
+        response = UserOut(
             id=new_user.id,
             username=new_user.username,
             email=new_user.email,
@@ -59,7 +58,14 @@ async def register(user_data: UserRegister, db: DBDep) -> UserOut:
             is_banned=new_user.is_banned,
             created_at=new_user.created_at
         )
+        
+        db.commit()
+        
+        return response
     
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(

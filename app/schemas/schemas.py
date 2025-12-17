@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 class VideoResponse(BaseModel):
@@ -162,5 +164,5 @@ class UserOut(BaseModel):
     email: str
     is_moderator: bool
     is_banned: bool
-    created_at: str
+    created_at: date
     
