@@ -20,6 +20,7 @@ from app.schemas import (
     VideoDeactivateResponse,
     VideoDemonetizeResponse,
     VideoInfo,
+    ReportResponse,
 )
 
 router = APIRouter(tags=["admin"], prefix="/admin")
@@ -134,14 +135,14 @@ async def get_all_reports(
     
     return ReportsListResponse(
         reports=[
-            {
-                "id": report.id,
-                "reason": report.reason,
-                "created_at": report.created_at,
-                "is_resolved": report.is_resolved,
-                "reporter_id": report.reporter_id,
-                "video_id": report.video_id
-            }
+            ReportResponse(
+                id=report.id,
+                reason=report.reason,
+                created_at=report.created_at,
+                is_resolved=report.is_resolved,
+                reporter_id=report.reporter_id,
+                video_id=report.video_id
+            )
             for report in reports
         ],
         count=len(reports),
