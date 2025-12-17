@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import joinedload
 
 from app.db.models import Channel, Report, User, Video
 from app.db.session import DBDep
@@ -153,5 +154,159 @@ async def resolve_report(report_id: int, db: DBDep):
         "report_id": report.id,
         "is_resolved": report.is_resolved,
         "video_id": report.video_id
+    }
+
+@router.get("/reports/detailed")
+async def get_reports_with_details(
+    db: DBDep,
+    resolved: bool | None = None,
+    skip: int = 0,
+    limit: int = 50
+):
+    query = (
+        select(Report, User.username, Video.title)
+        .join(User, Report.reporter_id == User.id)
+        .join(Video, Report.video_id == Video.id)
+    )
+    
+    if resolved is not None:
+        query = query.where(Report.is_resolved == resolved)
+    
+    query = query.order_by(Report.created_at.desc()).offset(skip).limit(limit)
+    
+    results = db.execute(query).all()
+    
+    return {
+        "reports": [
+            {
+                "id": report.id,
+                "reason": report.reason,
+                "created_at": report.created_at,
+                "is_resolved": report.is_resolved,
+                "reporter": {
+                    "id": report.reporter_id,
+                    "username": username
+                },
+                "video": {
+                    "id": report.video_id,
+                    "title": title
+                }
+            }
+            for report, username, title in results
+        ],
+        "count": len(results),
+        "skip": skip,
+        "limit": limit
+    }
+
+
+@router.get("/users/problematic")
+async def get_problematic_users(
+    db: DBDep,
+    min_reports: int = 3,
+    skip: int = 0,
+    limit: int = 50
+):
+    query = (
+        select(
+            User.id,
+            User.username,
+            User.email,
+            User.is_banned,
+            func.count(Report.id).label("report_count")
+        )
+        .join(Report, User.id == Report.reporter_id)
+        .group_by(User.id, User.username, User.email, User.is_banned)
+        .having(func.count(Report.id) >= min_reports)
+        .order_by(func.count(Report.id).desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    
+    results = db.execute(query).all()
+    
+    return {
+        "users": [
+            {
+                "id": user_id,
+                "username": username,
+                "email": email,
+                "is_banned": is_banned,
+                "reports_created": report_count
+            }
+            for user_id, username, email, is_banned, report_count in results
+        ],
+        "count": len(results),
+        "min_reports_threshold": min_reports
+    }
+
+
+@router.get("/analytics/channels-reports-stats")
+async def get_channels_with_reports_analytics(
+    db: DBDep,
+    min_reports: int = 1,
+    limit: int = 20
+):
+    query = (
+        select(
+            Channel.id.label("channel_id"),
+            Channel.name.label("channel_name"),
+            Channel.strikes,
+            User.username.label("owner_username"),
+            func.count(Report.id).label("total_reports"),
+            func.count(func.distinct(Video.id)).label("reported_videos_count"),
+            func.count(func.distinct(Report.reporter_id)).label("unique_reporters"),
+            (
+                func.cast(
+                    func.sum(func.cast(Report.is_resolved, func.Integer())),
+                    func.Float()
+                ) / func.count(Report.id) * 100
+            ).label("resolved_percentage")
+        )
+        .join(Video, Channel.id == Video.channel_id)
+        .join(Report, Video.id == Report.video_id)
+        .join(User, Channel.owner_id == User.id)
+        .group_by(
+            Channel.id,
+            Channel.name,
+            Channel.strikes,
+            User.username
+        )
+        .having(func.count(Report.id) >= min_reports)
+        .order_by(func.count(Report.id).desc())
+        .limit(limit)
+    )
+    
+    results = db.execute(query).all()
+    
+    return {
+        "analytics": [
+            {
+                "channel": {
+                    "id": channel_id,
+                    "name": channel_name,
+                    "strikes": strikes,
+                    "owner_username": owner_username
+                },
+                "report_stats": {
+                    "total_reports": total_reports,
+                    "reported_videos_count": reported_videos_count,
+                    "unique_reporters": unique_reporters,
+                    "resolved_percentage": round(resolved_percentage, 2) if resolved_percentage else 0
+                },
+                "risk_level": (
+                    "HIGH" if total_reports >= 10 or strikes >= 2
+                    else "MEDIUM" if total_reports >= 5 or strikes >= 1
+                    else "LOW"
+                )
+            }
+            for (
+                channel_id, channel_name, strikes, owner_username,
+                total_reports, reported_videos_count, unique_reporters,
+                resolved_percentage
+            ) in results
+        ],
+        "count": len(results),
+        "min_reports_threshold": min_reports
     }
 
