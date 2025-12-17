@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.db.models import Channel, Report, User, Video
@@ -30,11 +30,11 @@ async def deactivate_video(video_id: int, db: DBDep) -> VideoDeactivateResponse:
     video = db.execute(select(Video).where(Video.id == video_id)).scalar_one_or_none()
     
     if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+
     if not video.is_active:
-        raise HTTPException(status_code=400, detail="Video is already inactive")
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Video is already inactive")
+
     video.is_active = False
     db.commit()
     db.refresh(video)
@@ -52,11 +52,11 @@ async def demonetize_video(video_id: int, db: DBDep) -> VideoDemonetizeResponse:
     video = db.execute(select(Video).where(Video.id == video_id)).scalar_one_or_none()
     
     if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+
     if not video.is_monetized:
-        raise HTTPException(status_code=400, detail="Video is already not monetized")
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Video is already not monetized")
+
     video.is_monetized = False
     db.commit()
     db.refresh(video)
@@ -74,11 +74,11 @@ async def ban_user(user_id: int, db: DBDep) -> UserBanResponse:
     user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
     if user.is_banned:
-        raise HTTPException(status_code=400, detail="User is already banned")
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is already banned")
+
     user.is_banned = True
     db.commit()
     db.refresh(user)
@@ -98,8 +98,8 @@ async def add_channel_strike(channel_id: int, db: DBDep) -> ChannelStrikeRespons
     ).scalar_one_or_none()
     
     if not channel:
-        raise HTTPException(status_code=404, detail="Channel not found")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+
     channel.strikes += 1
     db.commit()
     db.refresh(channel)
@@ -157,11 +157,11 @@ async def resolve_report(report_id: int, db: DBDep) -> ReportResolveResponse:
     ).scalar_one_or_none()
     
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+
     if report.is_resolved:
-        raise HTTPException(status_code=400, detail="Report is already resolved")
-    
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Report is already resolved")
+
     report.is_resolved = True
     db.commit()
     db.refresh(report)
