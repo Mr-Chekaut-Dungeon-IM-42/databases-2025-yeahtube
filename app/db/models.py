@@ -1,17 +1,27 @@
 from __future__ import annotations
 
+import enum
+from datetime import datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
+    DateTime,
+    Enum,
+    Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
+    Interval,
     MetaData,
     String,
     Text,
+    func,
     text,
     Float,
+    true,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -61,6 +71,44 @@ class User(Base):
     )
 
 
+class ChannelStrike(Base):
+    __tablename__ = "channel_strikes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    duration: Mapped[timedelta] = mapped_column(Interval)
+    video_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("videos.id"), nullable=True
+    )
+    channel_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("channels.id", ondelete="CASCADE")
+    )
+
+    video: Mapped[Video | None] = relationship(
+        "Video", back_populates="channel_strikes"
+    )
+    channel: Mapped[Channel] = relationship("Channel", back_populates="channel_strikes")
+
+
+class ChannelStrike(Base):
+    __tablename__ = "channel_strikes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    duration: Mapped[timedelta] = mapped_column(Interval)
+    video_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("videos.id"), nullable=True
+    )
+    channel_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("channels.id", ondelete="CASCADE")
+    )
+
+    video: Mapped[Video | None] = relationship(
+        "Video", back_populates="channel_strikes"
+    )
+    channel: Mapped[Channel] = relationship("Channel", back_populates="channel_strikes")
+
+
 class Channel(Base):
     __tablename__ = "channels"
 
@@ -78,6 +126,9 @@ class Channel(Base):
     )
     subscribers: Mapped[list["Subscription"]] = relationship(
         "Subscription", back_populates="channel", cascade="all, delete-orphan"
+    )
+    strikes: Mapped[list["ChannelStrike"]] = relationship(
+        "ChannelStrike", back_populates="channel", cascade="all, delete-orphan"
     )
 
 
@@ -180,16 +231,52 @@ class Subscription(Base):
     channel_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("channels.id", ondelete="CASCADE"), primary_key=True
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, server_default=true())
+    paid_subs: Mapped[list[PaidSubscription]] = relationship(
+        "PaidSubscription", back_populates="subscription"
+    )
 
     user: Mapped[User] = relationship("User", back_populates="subscriptions")
     channel: Mapped[Channel] = relationship("Channel", back_populates="subscribers")
+
+
+class PaidSubTier(enum.Enum):
+    BRONZE = 4.99
+    SILVER = 7.49
+    GOLD = 9.99
+    DIAMOND = 17.49
+
+
+class PaidSubscription(Base):
+    __tablename__ = "paid_subscriptions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["sub_user_id", "sub_channel_id"],
+            ["subscription.user_id", "subscription.channel_id"],
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    active_since: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    active_to: Mapped[datetime | None] = mapped_column(
+        DateTime, server_default=func.now(), nullable=True
+    )
+    tier: Mapped[PaidSubTier] = mapped_column(Enum(PaidSubTier))
+
+    sub_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    sub_channel_id: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    sub: Mapped[Subscription] = relationship("Subscription", back_populates="paid_subs")
 
 
 class View(Base):
     __tablename__ = "views"
 
     __table_args__ = (
-        CheckConstraint("watched_percentage >= 0.0 AND watched_percentage <= 1.0", name="ck_views_watched_amount"),
+        CheckConstraint(
+            "watched_percentage >= 0.0 AND watched_percentage <= 1.0",
+            name="ck_views_watched_amount",
+        ),
     )
 
     user_id: Mapped[int] = mapped_column(
@@ -201,9 +288,13 @@ class View(Base):
     watched_at: Mapped[str] = mapped_column(
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
-    watched_percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    watched_percentage: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0
+    )
 
-    reaction: Mapped[Literal["Liked", "Disliked"]| None] = mapped_column(String, nullable=True)
+    reaction: Mapped[Literal["Liked", "Disliked"] | None] = mapped_column(
+        String, nullable=True
+    )
 
     user: Mapped[User] = relationship("User", back_populates="views")
     video: Mapped[Video] = relationship("Video", back_populates="views")
