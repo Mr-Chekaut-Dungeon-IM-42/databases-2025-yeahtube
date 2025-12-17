@@ -70,8 +70,73 @@ async def create_user(user_data: UserCreate, db: DBDep):
     
     return user
 
+@router.patch("/{user_id}", response_model=UserResponse)
+async def update_user(user_id: int, user_data: UserUpdate, db: DBDep):
+    user = db.get(User, user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.is_deleted:
+        raise HTTPException(status_code=410, detail="User has been deleted")
+    
+    if user_data.username is not None:
+        existing = db.execute(
+            select(User).where(User.username == user_data.username, User.id != user_id)
+        ).scalar_one_or_none()
+        
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists"
+            )
+        user.username = user_data.username
+    
+    if user_data.email is not None:
+        existing_email = db.execute(
+            select(User).where(User.email == user_data.email, User.id != user_id)
+        ).scalar_one_or_none()
+        
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
+        user.email = user_data.email
+    
+    if user_data.is_moderator is not None:
+        user.is_moderator = user_data.is_moderator
+    
+    db.commit()
+    db.refresh(user)
+    
+    return user
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def soft_delete_user(user_id: int, db: DBDep):
+    user = db.get(User, user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.is_deleted:
+        raise HTTPException(status_code=410, detail="User already deleted")
+    
+    user.is_deleted = True
+    db.commit()
+    
+    return None
+
 @router.get("/{user_id}/recommendations", response_model=dict[str, list[VideoResponse]])
 async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
+    
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.is_deleted:
+        raise HTTPException(status_code=410, detail="User has been deleted")
+    
     user_channel_views = (
         select(
             Video.channel_id,
