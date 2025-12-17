@@ -780,12 +780,12 @@ wheels = [
 ]
 
 [[package]]
-name = "passlib"
-version = "1.7.4"
+name = "passlib-fork"
+version = "1.7.4.post2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b6/06/9da9ee59a67fae7761aab3ccc84fa4f3f33f125b370f1ccdb915bf967c11/passlib-1.7.4.tar.gz", hash = "sha256:defd50f72b65c5402ab2c573830a6978e5f202ad0d984793c8dde2c4152ebe04", size = 689844, upload-time = "2020-10-08T19:00:52.121Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/15/e0/28546c2d183853ad13b9fee89b93a5225ae389e11990ecf367a7815142f8/passlib_fork-1.7.4.post2.tar.gz", hash = "sha256:c3fd28e14918f0f45a6f51220d571ee10f3ed5926e9ae0c056d043426a2ab153", size = 471588, upload-time = "2024-01-14T14:50:03.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/a4/ab6b7589382ca3df236e03faa71deac88cae040af60c071a78d254a62172/passlib-1.7.4-py2.py3-none-any.whl", hash = "sha256:aa6bca462b8d8bda89c70b382f0c298a20b5560af6cbfa2dce410c0a2fb669f1", size = 525554, upload-time = "2020-10-08T19:00:49.856Z" },
+    { url = "https://files.pythonhosted.org/packages/76/87/b85ac4aab5e6ff2547a42eed9584a6fbcef535138ee247c974004568de2d/passlib_fork-1.7.4.post2-py3-none-any.whl", hash = "sha256:f7d0b289015d89045f19f329ddf19b93f76523d899779f50922bd8ac9dab8afc", size = 527093, upload-time = "2024-01-14T14:50:00.211Z" },
 ]
 
 [package.optional-dependencies]
@@ -1614,7 +1614,7 @@ dependencies = [
     { name = "faker" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
-    { name = "passlib", extra = ["bcrypt"] },
+    { name = "passlib-fork", extra = ["bcrypt"] },
     { name = "psycopg2" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1632,11 +1632,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
-    { name = "bcrypt", specifier = ">=4.0.0,<5.0.0" },
+    { name = "bcrypt", specifier = ">=4.0.0" },
     { name = "faker", specifier = ">=20.0.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.124.4" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
+    { name = "passlib-fork", extras = ["bcrypt"], specifier = ">=1.7.4" },
     { name = "psycopg2", specifier = ">=2.9.11" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.23.0" },
