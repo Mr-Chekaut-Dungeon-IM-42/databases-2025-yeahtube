@@ -34,29 +34,38 @@ async def register(user_data: UserRegister, db: DBDep) -> UserOut:
             detail="Email already registered"
         )
     
-    hashed_password = get_password_hash(user_data.password)
-    new_user = User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hashed_password,
-        created_at=date.today(),
-        is_moderator=False,
-        is_deleted=False,
-        is_banned=False
-    )
+    try:
+        hashed_password = get_password_hash(user_data.password)
+        
+        new_user = User(
+            username=user_data.username,
+            email=user_data.email,
+            hashed_password=hashed_password,
+            created_at=date.today(),
+            is_moderator=False,
+            is_deleted=False,
+            is_banned=False
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        return UserOut(
+            id=new_user.id,
+            username=new_user.username,
+            email=new_user.email,
+            is_moderator=new_user.is_moderator,
+            is_banned=new_user.is_banned,
+            created_at=new_user.created_at
+        )
     
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return UserOut(
-        id=new_user.id,
-        username=new_user.username,
-        email=new_user.email,
-        is_moderator=new_user.is_moderator,
-        is_banned=new_user.is_banned,
-        created_at=new_user.created_at
-    )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
 
 
 @router.post("/login", response_model=Token)
