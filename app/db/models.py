@@ -35,6 +35,7 @@ class User(Base):
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
     is_moderator: Mapped[bool] = mapped_column(default=False, nullable=False)
     is_deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_banned: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     channels: Mapped[list["Channel"]] = relationship(
         "Channel", back_populates="owner", cascade="all, delete-orphan"
@@ -51,6 +52,9 @@ class User(Base):
     views: Mapped[list["View"]] = relationship(
         "View", back_populates="user", cascade="all, delete-orphan"
     )
+    reports_created: Mapped[list["Report"]] = relationship(
+        "Report", back_populates="reporter", cascade="all, delete-orphan"
+    )
 
 
 class Channel(Base):
@@ -59,6 +63,7 @@ class Channel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
+    strikes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     owner_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -87,6 +92,8 @@ class Video(Base):
     uploaded_at: Mapped[str] = mapped_column(
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    is_monetized: Mapped[bool] = mapped_column(default=False, nullable=False)
     channel_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False
     )
@@ -100,6 +107,9 @@ class Video(Base):
     )
     views: Mapped[list["View"]] = relationship(
         "View", back_populates="video", cascade="all, delete-orphan"
+    )
+    reports: Mapped[list["Report"]] = relationship(
+        "Report", back_populates="video", cascade="all, delete-orphan"
     )
 
 
@@ -186,3 +196,26 @@ class View(Base):
 
     user: Mapped[User] = relationship("User", back_populates="views")
     video: Mapped[Video] = relationship("Video", back_populates="views")
+
+
+class Report(Base):
+    __tablename__ = "reports"
+    __table_args__ = (
+        CheckConstraint("length(reason) <= 512", name="ck_reports_reason_length"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        Date, nullable=False, server_default=text("CURRENT_DATE")
+    )
+    is_resolved: Mapped[bool] = mapped_column(default=False, nullable=False)
+    reporter_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    video_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False
+    )
+
+    reporter: Mapped[User] = relationship("User", back_populates="reports_created")
+    video: Mapped[Video] = relationship("Video", back_populates="reports")
