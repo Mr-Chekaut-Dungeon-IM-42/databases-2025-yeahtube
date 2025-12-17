@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.auth import create_access_token, get_password_hash, verify_password
+from app.utils.auth import create_access_token, get_password_hash, verify_password
 from app.db.models import User
 from app.db.session import DBDep
 from app.dependencies import get_current_user
