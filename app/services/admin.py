@@ -1,24 +1,24 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.repositories.admin import AdminRepository
 from app.schemas.schemas import (
     ChannelAnalyticsListResponse,
     ChannelAnalyticsResponse,
-    ChannelInfo,
     ChannelStrikeResponse,
     DetailedReportResponse,
     DetailedReportsListResponse,
-    ProblematicUsersListResponse,
     ProblematicUserResponse,
-    ReportResolveResponse,
-    ReportStats,
-    ReportsListResponse,
+    ProblematicUsersListResponse,
     ReporterInfo,
+    ReportResolveResponse,
+    ReportResponse,
+    ReportsListResponse,
+    ReportStats,
     UserBanResponse,
     VideoDeactivateResponse,
     VideoDemonetizeResponse,
     VideoInfo,
-    ReportResponse,
 )
 
 
