@@ -191,9 +191,9 @@ class AdminService:
                     created_at=report.created_at,
                     is_resolved=report.is_resolved,
                     reporter=ReporterInfo(id=report.reporter_id, username=username),
-                    video=VideoInfo(id=report.video_id, title=title),
+                    video=VideoInfo(id=report.video_id, title=title, views=views),
                 )
-                for report, username, title in results
+                for report, username, title, views in results
             ],
             count=len(results),
             skip=skip,
