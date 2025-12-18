@@ -47,7 +47,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
     is_moderator: Mapped[bool] = mapped_column(default=False, nullable=False)
-    is_deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
     is_banned: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     channels: Mapped[list["Channel"]] = relationship(
@@ -80,7 +80,7 @@ class ChannelStrike(Base):
         Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=True
     )
     channel_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("channels.id", ondelete="CASCADE")
+        Integer, ForeignKey("channels.id", ondelete="CASCADE"), index=True
     )
 
     video: Mapped[Video | None] = relationship(
@@ -98,7 +98,7 @@ class Channel(Base):
     name: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
     owner_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     owner: Mapped[User] = relationship("User", back_populates="channels")
@@ -128,10 +128,13 @@ class Video(Base):
     uploaded_at: Mapped[str] = mapped_column(
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
-    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False, index=True)
     is_monetized: Mapped[bool] = mapped_column(default=False, nullable=False)
     channel_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False
+        Integer,
+        ForeignKey("channels.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     channel: Mapped[Channel] = relationship("Channel", back_populates="videos")
@@ -161,13 +164,13 @@ class Comment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     comment_text: Mapped[str] = mapped_column(Text, nullable=False)
     commented_at: Mapped[str] = mapped_column(
-        Date, nullable=False, server_default=text("CURRENT_DATE")
+        Date, nullable=False, server_default=text("CURRENT_DATE"), index=True
     )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     video_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     user: Mapped[User] = relationship("User", back_populates="comments")
@@ -183,7 +186,7 @@ class Playlist(Base):
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
     author_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     author: Mapped[User] = relationship("User", back_populates="playlists")
@@ -273,7 +276,7 @@ class View(Base):
         Integer, ForeignKey("videos.id", ondelete="CASCADE"), primary_key=True
     )
     watched_at: Mapped[str] = mapped_column(
-        Date, nullable=False, server_default=text("CURRENT_DATE")
+        Date, nullable=False, server_default=text("CURRENT_DATE"), index=True
     )
     watched_percentage: Mapped[float] = mapped_column(
         Float, nullable=False, default=0.0
@@ -298,12 +301,12 @@ class Report(Base):
     created_at: Mapped[str] = mapped_column(
         Date, nullable=False, server_default=text("CURRENT_DATE")
     )
-    is_resolved: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_resolved: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
     reporter_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     video_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     reporter: Mapped[User] = relationship("User", back_populates="reports_created")
