@@ -5,6 +5,7 @@ from app.repositories.admin import AdminRepository
 from app.schemas.schemas import (
     ChannelAnalyticsListResponse,
     ChannelAnalyticsResponse,
+    ChannelInfoBrief,
     ChannelStrikeResponse,
     DetailedReportResponse,
     DetailedReportsListResponse,
@@ -231,7 +232,7 @@ class AdminService:
         return ChannelAnalyticsListResponse(
             analytics=[
                 ChannelAnalyticsResponse(
-                    channel=ChannelInfo(
+                    channel=ChannelInfoBrief(
                         id=channel_id,
                         name=channel_name,
                         strikes=strikes,
