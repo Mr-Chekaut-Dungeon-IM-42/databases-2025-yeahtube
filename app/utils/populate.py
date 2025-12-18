@@ -1,7 +1,7 @@
 import random
 from datetime import date, datetime
 
-from db.models import (
+from app.db.models import (
     Channel,
     ChannelStrike,
     Comment,
@@ -15,16 +15,18 @@ from db.models import (
     Video,
     View,
 )
-from db.session import SessionLocal
+from app.db.session import SessionLocal
 from faker import Faker
 from sqlalchemy.orm import Session
-from utils.auth import get_password_hash
+from app.utils.auth import get_password_hash
 
 
 def create_test_data(session: Session) -> None:
     fake = Faker()
     fake.unique.clear()
 
+    session.query(PaidSubscription).delete()
+    session.query(ChannelStrike).delete()
     session.query(Report).delete()
     session.query(View).delete()
     session.query(Subscription).delete()
@@ -59,6 +61,7 @@ def create_test_data(session: Session) -> None:
         users.append(user)
 
     session.add_all(users)
+    session.commit()
 
     channels = []
     for user in users:
@@ -72,6 +75,7 @@ def create_test_data(session: Session) -> None:
             channels.append(channel)
 
     session.add_all(channels)
+    session.commit()
 
     videos = []
     for channel in channels:
@@ -91,18 +95,25 @@ def create_test_data(session: Session) -> None:
             videos.append(video)
 
     session.add_all(videos)
+    session.commit()
 
-    strikes = [
-        ChannelStrike(
-            issued_at=fake.date_time_this_decade(),
-            duration=fake.time_delta(end_datetime="+90d"),
-            channel=random.choice(channels),
-            video=random.choice(videos) if fake.boolean(80) else None,
+    strikes = []
+    for _ in range(len(channels) * 3):
+        channel = random.choice(channels)
+        issued_at = fake.date_time_this_decade()
+        duration = fake.time_delta(end_datetime="+90d")
+        video = random.choice(videos) if fake.boolean(80) else None
+
+        strike = ChannelStrike(
+            issued_at=issued_at,
+            duration=duration,
+            channel=channel,
+            video=video,
         )
-        for _ in range(len(channels) * 3)
-    ]
+        strikes.append(strike)
 
     session.add_all(strikes)
+    session.commit()
 
     comments = []
     for _ in range(2000):
@@ -149,6 +160,7 @@ def create_test_data(session: Session) -> None:
         PaidSubTier.GOLD,
         PaidSubTier.DIAMOND,
     ]
+
     for user in users:
         num_subs = fake.random_int(0, 20)
         potential_channels = [c for c in channels if c.owner != user]
@@ -159,22 +171,41 @@ def create_test_data(session: Session) -> None:
                 unique=True,
             )
             for channel in selected_channels:
-                num_paid_subs = fake.random_int(0, 10)
-                paid_sub_dates = [fake.date_time_this_decade(before_now=True)]
-                for _ in range(num_paid_subs * 2 - 1):
-                    paid_sub_dates.append(
-                        fake.date_time_between(paid_sub_dates[-1], datetime.now())
-                    )
-                paid_subs = [
-                    PaidSubscription(
-                        active_since=since, active_to=to, tier=random.choice(TIERS)
-                    )
-                    for since, to in zip(paid_sub_dates[::2], paid_sub_dates[1::2])
-                ]
-                sub = Subscription(user=user, channel=channel, paid_subs=paid_subs)
+                is_active = fake.boolean(chance_of_getting_true=85)  # 85% active
+                sub = Subscription(
+                    user=user,
+                    channel=channel,
+                    is_active=is_active,
+                )
                 subscriptions.append(sub)
 
     session.add_all(subscriptions)
+    session.commit()
+
+    paid_subs = []
+    for sub in subscriptions:
+        # 30% chance of having paid subscription history
+        if fake.boolean(chance_of_getting_true=30):
+            num_paid_periods = fake.random_int(1, 5)
+
+            for _ in range(num_paid_periods):
+                active_since = fake.date_time_this_decade(before_now=True)
+                # 70% chance it's expired, 30% chance it's still active
+                if fake.boolean(chance_of_getting_true=70):
+                    active_to = fake.date_time_between(active_since, datetime.now())
+                else:
+                    active_to = None  # Still active
+
+                paid_sub = PaidSubscription(
+                    active_since=active_since,
+                    active_to=active_to,
+                    tier=random.choice(TIERS),
+                    sub_user_id=sub.user_id,
+                    sub_channel_id=sub.channel_id,
+                )
+                paid_subs.append(paid_sub)
+
+    session.add_all(paid_subs)
 
     views = []
     for user in users:
@@ -188,9 +219,13 @@ def create_test_data(session: Session) -> None:
                 end_date=date.today(),
             )
             watched_percentage = fake.pyfloat(min_value=0.0, max_value=1.0)
-            reaction = fake.random_element(
-                elements=[None, None, None, "Liked", "Disliked"]
-            )
+            reaction_choice = fake.random_int(0, 9)
+            if reaction_choice < 6:
+                reaction = None
+            elif reaction_choice < 9:
+                reaction = "Liked"
+            else:
+                reaction = "Disliked"
 
             view = View(
                 user=user,

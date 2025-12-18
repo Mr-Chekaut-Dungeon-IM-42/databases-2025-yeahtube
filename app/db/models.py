@@ -90,32 +90,12 @@ class ChannelStrike(Base):
     channel: Mapped[Channel] = relationship("Channel", back_populates="channel_strikes")
 
 
-class ChannelStrike(Base):
-    __tablename__ = "channel_strikes"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    issued_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    duration: Mapped[timedelta] = mapped_column(Interval)
-    video_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("videos.id"), nullable=True
-    )
-    channel_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("channels.id", ondelete="CASCADE")
-    )
-
-    video: Mapped[Video | None] = relationship(
-        "Video", back_populates="channel_strikes"
-    )
-    channel: Mapped[Channel] = relationship("Channel", back_populates="channel_strikes")
-
-
 class Channel(Base):
     __tablename__ = "channels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[str] = mapped_column(Date, nullable=False)
-    strikes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     owner_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -127,7 +107,7 @@ class Channel(Base):
     subscribers: Mapped[list["Subscription"]] = relationship(
         "Subscription", back_populates="channel", cascade="all, delete-orphan"
     )
-    strikes: Mapped[list["ChannelStrike"]] = relationship(
+    channel_strikes: Mapped[list["ChannelStrike"]] = relationship(
         "ChannelStrike", back_populates="channel", cascade="all, delete-orphan"
     )
 
@@ -165,6 +145,9 @@ class Video(Base):
     )
     reports: Mapped[list["Report"]] = relationship(
         "Report", back_populates="video", cascade="all, delete-orphan"
+    )
+    channel_strikes: Mapped[list["ChannelStrike"]] = relationship(
+        "ChannelStrike", back_populates="video", cascade="all, delete-orphan"
     )
 
 
@@ -266,7 +249,7 @@ class PaidSubscription(Base):
     sub_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     sub_channel_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    sub: Mapped[Subscription] = relationship("Subscription", back_populates="paid_subs")
+    subscription: Mapped[Subscription] = relationship("Subscription", back_populates="paid_subs")
 
 
 class View(Base):
