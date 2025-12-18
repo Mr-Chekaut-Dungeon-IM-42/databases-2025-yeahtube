@@ -317,6 +317,93 @@
 
 ## Рішення щодо дизайну
 
+## Стратегія індексування
+
+База даних використовує індекси для оптимізації найчастіших запитів. Всі індекси створені на рівні ORM (SQLAlchemy) через параметр `index=True` у визначенні колонок моделей.
+
+### Реалізовані індекси
+
+#### 1. users
+```sql
+CREATE INDEX ix_users_is_deleted ON users(is_deleted);
+```
+- Призначення: Фільтрація активних/видалених користувачів
+- Використання: Всі запити виключають is_deleted=TRUE
+- Тип: B-tree (за замовчуванням)
+
+#### 2. channels
+```sql
+CREATE INDEX ix_channels_owner_id ON channels(owner_id);
+```
+- Призначення: Пошук каналів конкретного користувача
+- Використання: Запити "всі канали користувача X"
+- Зовнішній ключ: users(id)
+
+#### 3. videos
+```sql
+CREATE INDEX ix_videos_is_active ON videos(is_active);
+CREATE INDEX ix_videos_channel_id ON videos(channel_id);
+```
+- ix_videos_is_active: Фільтрація активних/деактивованих відео (важливо для модерації)
+- ix_videos_channel_id: Пошук всіх відео каналу (для сторінок каналів)
+
+#### 4. comments
+```sql
+CREATE INDEX ix_comments_commented_at ON comments(commented_at);
+CREATE INDEX ix_comments_video_id ON comments(video_id);
+CREATE INDEX ix_comments_user_id ON comments(user_id);
+```
+- ix_comments_commented_at: Сортування коментарів за датою (нові зверху)
+- ix_comments_video_id: Завантаження всіх коментарів відео
+- ix_comments_user_id: Пошук коментарів конкретного користувача
+
+#### 5. views
+```sql
+CREATE INDEX ix_views_watched_at ON views(watched_at);
+CREATE INDEX ix_views_user_id ON views(user_id);
+```
+- ix_views_watched_at: Аналітика переглядів за періодами (день/тиждень/рік)
+- ix_views_user_id: Історія переглядів користувача, рекомендації
+
+#### 6. reports
+```sql
+CREATE INDEX ix_reports_is_resolved ON reports(is_resolved);
+CREATE INDEX ix_reports_reporter_id ON reports(reporter_id);
+CREATE INDEX ix_reports_video_id ON reports(video_id);
+```
+- ix_reports_is_resolved: Фільтр активних скарг для модераторів
+- ix_reports_reporter_id: Аналіз проблемних користувачів (багато скарг)
+- ix_reports_video_id: Всі скарги на конкретне відео
+
+### Composite індекси (рекомендації для майбутнього)
+
+Наразі не реалізовані, але можуть покращити продуктивність складних запитів:
+
+```sql
+-- Для рекомендаційної системи
+CREATE INDEX idx_views_user_video ON views(user_id, video_id);
+
+-- Для аналітики переглядів користувача за період
+CREATE INDEX idx_views_user_watched ON views(user_id, watched_at);
+
+-- Для пошуку нерозглянутих скарг на відео
+CREATE INDEX idx_reports_video_resolved ON reports(video_id, is_resolved);
+
+-- Для пошуку активних відео каналу
+CREATE INDEX idx_videos_channel_active ON videos(channel_id, is_active);
+```
+
+### Обґрунтування індексів
+
+1. Зовнішні ключі: Всі FK колонки мають індекси для прискорення JOIN операцій
+2. Фільтраційні поля: is_active, is_deleted, is_resolved часто використовуються у WHERE
+3. Дати: watched_at, commented_at використовуються для сортування та фільтрації за періодами
+4. Unique constraints: username, email автоматично мають унікальні індекси
+
+
+
+## Рішення щодо дизайну
+
 ### Нормалізація
 
 База даних спроектована у третій нормальній формі (3НФ):
