@@ -35,7 +35,7 @@ router = APIRouter(tags=["channel"], prefix="/channel")
 
 @router.get("/{channel_id}/info")
 async def channel_fullinfo(channel_id: int, db: DBDep) -> ChannelInfoFull:
-    res = db.execute(
+    channel_data = db.execute(
         select(
             Channel.id,
             Channel.name,
@@ -52,25 +52,25 @@ async def channel_fullinfo(channel_id: int, db: DBDep) -> ChannelInfoFull:
         .group_by(Channel.id, Channel.name, User.id, User.username)
     ).first()
 
-    if not res:
+    if not channel_data:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Channel not found")
-    ch_id, ch_name, creator_id, creator_name, subs = res
+    ch_id, ch_name, creator_id, creator_name, subs = channel_data
 
-    v_query = (
+    videos_query = (
         select(Video.id, Video.title, func.count(View.user_id))
         .select_from(Video)
         .outerjoin(View, Video.id == View.video_id)
         .where(Video.channel_id == channel_id)
         .group_by(Video.id, Video.title)
     )
-    vresult = db.execute(v_query).all()
+    vresult = db.execute(videos_query).all()
     videos = [
         VideoInfo(id=vid, title=title, views=views) for (vid, title, views) in vresult
     ]
     total_views = sum(v.views for v in videos)
 
     now = datetime.now(UTC)
-    q = (
+    strikes_query = (
         select(func.count())
         .select_from(ChannelStrike)
         .where(
@@ -78,7 +78,7 @@ async def channel_fullinfo(channel_id: int, db: DBDep) -> ChannelInfoFull:
             (ChannelStrike.issued_at + ChannelStrike.duration) > now,
         )
     )
-    strike_count = db.scalar(q) or 0
+    strike_count = db.scalar(strikes_query) or 0
 
     return ChannelInfoFull(
         id=ch_id,
