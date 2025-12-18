@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Body
 from sqlalchemy import select, func, extract, desc
 from datetime import datetime
 
-from app.db.models import User, View, Video, Channel, Comment, Subscription
+from app.db.models import User, View, Video, Channel, Comment, Subscription, Report, Playlist
 from app.db.session import DBDep
-from app.schemas.schemas import UserCreate, UserUpdate, UserDetailedResponse, VideoResponse
+from app.schemas.schemas import UserUpdate, UserDetailedResponse, VideoResponse, UserCredibilityResponse
 
 router = APIRouter(tags=["user"], prefix="/user")
 
@@ -16,7 +16,10 @@ async def get_all_users(db: DBDep):
 
 @router.patch("/{user_id}", response_model=UserDetailedResponse)
 async def update_user(user_id: int, user_data: UserUpdate, db: DBDep):
-    user = db.get(User, user_id)
+    
+    user = db.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    ).scalar_one_or_none()
     
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -129,7 +132,7 @@ async def get_recommendations(user_id: int, db: DBDep, limit: int = 20):
     }
 
 
-@router.get("/{user_id}/stats/views")
+@router.get("/{user_id}/views")
 async def get_user_year_views(user_id: int, db: DBDep):
     current_year = datetime.now().year
     
@@ -145,7 +148,7 @@ async def get_user_year_views(user_id: int, db: DBDep):
     return {"user_id": user_id, "year": current_year, "total_views": count}
 
 
-@router.get("/{user_id}/stats/favoriteCreator")
+@router.get("/{user_id}/favoriteCreator")
 async def get_user_favorite_creator(user_id: int, db: DBDep):
     current_year = datetime.now().year
 
@@ -183,7 +186,7 @@ async def get_user_favorite_creator(user_id: int, db: DBDep):
     }
 
 
-@router.get("/{user_id}/stats/reactions")
+@router.get("/{user_id}/reactions")
 async def get_user_year_reactions(user_id: int, db: DBDep):
     """ Currently counts comments only """
     current_year = datetime.now().year
@@ -195,22 +198,73 @@ async def get_user_year_reactions(user_id: int, db: DBDep):
         Comment.user_id == user_id,
         extract('year', Comment.commented_at) == current_year
     )
-    count = db.execute(query).scalar() or 0
+    comm_count = db.execute(query).scalar() or 0
+
+    reactions_query = select(func.count(View.video_id)).where(
+        View.user_id == user_id,
+        extract('year', View.watched_at) == current_year,
+        View.reaction.isnot(None)
+    )
+    react_count = db.execute(reactions_query).scalar() or 0
+
+    total_count = comm_count + react_count
     
     return {
         "user_id": user_id, 
         "year": current_year, 
-        "total_reactions": count
+        "total_reactions": total_count
     }
 
 
-@router.get("/{user_id}/stats/averageViewTime")
+@router.get("/{user_id}/averageViewTime")
 async def get_user_avg_view_time(user_id: int, db: DBDep):
     """ Currently returns nothing """
     if not db.get(User, user_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        
+    
+    query = select(func.avg(View.watched_percentage)).where(View.user_id == user_id)
+    avg_result = db.execute(query).scalar()
+      
+    avg_percentage = avg_result if avg_result is not None else 0.0
+
     return {
         "user_id": user_id,
-        "average_view_time_seconds": None
+        "average_view_percents": round(avg_percentage * 100, 2)
     }
+
+@router.get("/{user_id}/credibility", response_model=UserCredibilityResponse)
+async def get_user_credibility(user_id: int, db: DBDep):
+    
+    user = db.get(User, user_id)
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    if user.is_deleted:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="User has been deleted")
+    
+    result = db.execute(
+        select(
+            User.id,
+            User.username,
+            func.count(Report.id).label("total_reports"),
+            func.count(Report.id).filter(Report.is_resolved == True).label("approved_reports")
+        )
+        .outerjoin(Report, Report.reporter_id == User.id)
+        .where(User.id == user_id)
+        .group_by(User.id, User.username)
+    ).one()
+    
+    user_id, username, total_reports, approved_reports = result
+    approved_reports = approved_reports or 0
+    total_reports = total_reports or 0
+    
+    credibility_score = (approved_reports / total_reports * 100) if total_reports > 0 else 0
+    
+    return UserCredibilityResponse(
+        user_id=user_id,
+        username=username,
+        total_reports=total_reports,
+        approved_reports=approved_reports,
+        credibility_score=round(credibility_score, 2)
+    )
