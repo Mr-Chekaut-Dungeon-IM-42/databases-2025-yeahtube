@@ -27,6 +27,19 @@ class VideoUpdate(BaseModel):
     is_active: bool | None = None
     is_monetized: bool | None = None
 
+class VideoWithCommentCreate(BaseModel):
+    title: str = Field(..., max_length=128)
+    description: str | None = Field(None, max_length=256)
+    channel_id: int
+    initial_comment: str = Field(..., min_length=1, max_length=2048)
+    is_active: bool | None = True
+    is_monetized: bool | None = False
+
+class VideoWithCommentResponse(BaseModel):
+    video: VideoResponse
+    comment_id: int
+    comment_text: str
+
 class VideoDeactivateResponse(BaseModel):
     message: str
     video_id: int

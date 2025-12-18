@@ -16,7 +16,10 @@ async def get_all_users(db: DBDep):
 
 @router.patch("/{user_id}", response_model=UserDetailedResponse)
 async def update_user(user_id: int, user_data: UserUpdate, db: DBDep):
-    user = db.get(User, user_id)
+    
+    user = db.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    ).scalar_one_or_none()
     
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

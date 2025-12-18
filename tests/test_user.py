@@ -104,6 +104,28 @@ def test_update_user(client, db):
     })
     assert response.status_code == 410
 
+def test_concurrent_user_update(client, db):
+    user = User(
+        username="concurrentuser",
+        email="concurrent@example.com",
+        hashed_password="fake_hash",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+        is_banned=False,
+    )
+    db.add(user)
+    db.commit()
+
+    response1 = client.patch(f"/user/{user.id}", json={"username": "user1"})
+    response2 = client.patch(f"/user/{user.id}", json={"username": "user2"})
+
+    assert response1.status_code == 200
+    assert response2.status_code == 200
+
+    db.refresh(user)
+    assert user.username == "user2"
+
 def test_soft_delete_user(client, db):
     user = User(
         username="deleteuser",
