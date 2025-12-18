@@ -33,6 +33,138 @@ def admin_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}"}
 
 
+@pytest.fixture
+def regular_user(db):
+    user = User(
+        username="regular_user",
+        email="regular@example.com",
+        hashed_password="fake_hash",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+        is_banned=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def regular_user_token(regular_user):
+    token = create_access_token(data={"user_id": regular_user.id})
+    return token
+
+
+@pytest.fixture
+def regular_user_headers(regular_user_token):
+    return {"Authorization": f"Bearer {regular_user_token}"}
+
+
+def test_admin_endpoints_require_authentication(client, db):
+    endpoints = [
+        ("patch", "/admin/video/1/deactivate"),
+        ("patch", "/admin/video/1/demonetize"),
+        ("post", "/admin/user/1/ban"),
+        ("post", "/admin/channel/1/strike"),
+        ("get", "/admin/reports"),
+        ("patch", "/admin/report/1/resolve"),
+        ("get", "/admin/reports/detailed"),
+        ("get", "/admin/users/problematic"),
+        ("get", "/admin/analytics/channels-reports-stats"),
+    ]
+
+    for method, endpoint in endpoints:
+        if method == "get":
+            response = client.get(endpoint)
+        elif method == "post":
+            response = client.post(endpoint)
+        elif method == "patch":
+            response = client.patch(endpoint)
+
+        assert response.status_code == 401, (
+            f"Expected 401 for {method.upper()} {endpoint}, got {response.status_code}"
+        )
+        assert (
+            "not authenticated" in response.json()["detail"].lower()
+            or "credentials" in response.json()["detail"].lower()
+        )
+
+
+def test_admin_endpoints_require_admin_privileges(client, db, regular_user_headers):
+    owner = User(
+        username="owner",
+        email="owner@example.com",
+        hashed_password="fake_hash",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+        is_banned=False,
+    )
+    db.add(owner)
+    db.commit()
+
+    channel = Channel(
+        name="Test Channel",
+        created_at=date.today(),
+        owner_id=owner.id,
+    )
+    db.add(channel)
+    db.commit()
+
+    video = Video(
+        title="Test Video",
+        channel_id=channel.id,
+        uploaded_at=date.today(),
+    )
+    db.add(video)
+    db.commit()
+
+    endpoints = [
+        ("patch", f"/admin/video/{video.id}/deactivate"),
+        ("patch", f"/admin/video/{video.id}/demonetize"),
+        ("post", f"/admin/user/{owner.id}/ban"),
+        ("post", f"/admin/channel/{channel.id}/strike"),
+        ("get", "/admin/reports"),
+        ("get", "/admin/reports/detailed"),
+        ("get", "/admin/users/problematic"),
+        ("get", "/admin/analytics/channels-reports-stats"),
+    ]
+
+    for method, endpoint in endpoints:
+        if method == "get":
+            response = client.get(endpoint, headers=regular_user_headers)
+        elif method == "post":
+            response = client.post(endpoint, headers=regular_user_headers)
+        elif method == "patch":
+            response = client.patch(endpoint, headers=regular_user_headers)
+
+        assert response.status_code == 403, (
+            f"Expected 403 for {method.upper()} {endpoint}, got {response.status_code}"
+        )
+        assert (
+            "admin" in response.json()["detail"].lower()
+            or "forbidden" in response.json()["detail"].lower()
+        )
+
+
+def test_admin_endpoints_with_invalid_token(client):
+    invalid_headers = {"Authorization": "Bearer invalid_token_12345"}
+
+    endpoints = [
+        ("get", "/admin/reports"),
+        ("get", "/admin/users/problematic"),
+    ]
+
+    for method, endpoint in endpoints:
+        if method == "get":
+            response = client.get(endpoint, headers=invalid_headers)
+
+        assert response.status_code == 401, (
+            f"Expected 401 for {method.upper()} {endpoint} with invalid token"
+        )
+
+
 def test_deactivate_video(client, db, admin_headers):
     owner = User(
         username="owner",
