@@ -67,54 +67,14 @@ YeahTube - це повнофункціональна backend-платформа 
 - **Python 3.11+** (тільки для локальної розробки без Docker)
 - **uv** - менеджер пакетів Python
 
-### Крок 1: Клонування репозиторію
+### Клонування репозиторію
 
 ```bash
 git clone https://github.com/Mr-Chekaut-Dungeon-IM-42/databases-2025-yeahtube.git
 cd databases-2025-yeahtube
 ```
 
-### Крок 2: Налаштування змінних оточення
-
-**1. Скопіюйте приклад конфігурації:**
-
-```bash
-cp .env.example .env
-```
-
-**2. Відредагуйте файл `.env`:**
-
-```env
-DB_URL=postgresql://admin:password@postgres:5432/yeahtube
-JWT_SECRET=your-secret-key-min-32-chars
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-
-**3. Підключення до бази даних:**
-
-- **Для Docker (рекомендовано):** Використовуйте ім'я сервісу `postgres`
-- **Для локальної розробки:** Використовуйте `localhost`
-
-### Крок 3: Запуск через Docker (рекомендовано)
-
-```bash
-# Запуск контейнерів (PostgreSQL + pgAdmin)
-docker compose up -d
-
-# Перевірка логів
-docker compose logs -f app
-```
-
-**Доступ до застосунку:**
-
-- **API сервер:** `http://localhost:8000`
-- **API документація (Swagger):** `http://localhost:8000/docs`
-- **pgAdmin (UI для бази даних):** `http://localhost:5050`
-  - Email: `admin@yeahtube.com`
-  - Пароль: `admin`
-
-### Крок 4: Локальна розробка
+### Локальна розробка
 
 ```bash
 1. docker compose watch
@@ -131,7 +91,10 @@ docker compose logs -f app
 
 ```
 
----
+**Доступ до застосунку:**
+
+- **API сервер:** `http://localhost:8000`
+- **API документація (Swagger):** `http://localhost:8000/docs`
 
 ## Запуск тестів
 
