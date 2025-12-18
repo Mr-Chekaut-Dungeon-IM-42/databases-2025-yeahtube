@@ -195,12 +195,21 @@ async def get_user_year_reactions(user_id: int, db: DBDep):
         Comment.user_id == user_id,
         extract('year', Comment.commented_at) == current_year
     )
-    count = db.execute(query).scalar() or 0
+    comm_count = db.execute(query).scalar() or 0
+
+    reactions_query = select(func.count(View.video_id)).where(
+        View.user_id == user_id,
+        extract('year', View.watched_at) == current_year,
+        View.reaction.isnot(None)
+    )
+    react_count = db.execute(reactions_query).scalar() or 0
+
+    total_count = comm_count + react_count
     
     return {
         "user_id": user_id, 
         "year": current_year, 
-        "total_reactions": count
+        "total_reactions": total_count
     }
 
 
@@ -209,10 +218,15 @@ async def get_user_avg_view_time(user_id: int, db: DBDep):
     """ Currently returns nothing """
     if not db.get(User, user_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        
+    
+    query = select(func.avg(View.watched_percentage)).where(View.user_id == user_id)
+    avg_result = db.execute(query).scalar()
+      
+    avg_percentage = avg_result if avg_result is not None else 0.0
+
     return {
         "user_id": user_id,
-        "average_view_time_seconds": None
+        "average_view_percents": round(avg_percentage * 100, 2)
     }
 
 @router.get("/{user_id}/credibility", response_model=UserCredibilityResponse)
