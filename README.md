@@ -1,200 +1,335 @@
-# Інструкції до запуску
+# YeahTube - Backend платформа для відеохостингу
 
-- Мати  встановлений `uv` і запущений postgres-сервер, доступний за адресою у
-  змінній оточення `DB_URL`, або, за її відсутності,
-  `postgresql://admin:password@localhost:5432/db_labs`.
-- У директорії `lab6` прописати `uv sync`
-- Активувати virtual environment: `. .venv/bin/activate` (для лінуксоїдів, на
-  вінді венв активується через `.venv/bin/activate.bat` (або `.ps1` для
-  PowerShell), чи якось так).
-- Перейти у директорію src/: `cd src`
-- Ініціалізувати початкову схему: `alembic upgrade 2c6c3c579839`
-- Заповнити таблицю тестовими даними: `uv run src/populate.py`
-- Вручну перевірити стан таблиці.
-- Застосувати міграції: `alembic upgrade <rev>` для конкретної ревізії,
-  `alembic upgrade head` для останньої.
+## Опис проєкту
 
-# Хід виконання
+YeahTube - це повнофункціональна backend-платформа для відеохостингу, аналог YouTube. Система дозволяє користувачам завантажувати відео, створювати канали, підписуватися на інших авторів, залишати коментарі, переглядати відео та управляти плейлистами. Адміністратори мають можливість модерувати контент, видавати штрафи каналам, блокувати користувачів та аналізувати статистику платформи.
 
-## Стан після нульової міграції з початковими тестовими даними
+**Предметна область:** Відеохостинг з можливостями монетизації та модерації контенту
 
-Версія бази даних:
-[`2c6c3c579839_init.py`](https://github.com/Mr-Chekaut-Dungeon-IM-42/databases-2025/blob/main/lab6/src/alembic/versions/2c6c3c579839_init.py)
+---
 
-Вигляд таблиці `subscription` після міграції:
+## Технологічний стек
 
-```sql
-db_labs=# select * from subscription;
- user_id | channel_id 
----------+------------
-       3 |          2
-       3 |          1
-       2 |          1
-(3 rows)
+- **Мова програмування:** Python 3.11
+- **Веб-фреймворк:** FastAPI 0.115.6
+- **ORM:** SQLAlchemy 2.0
+- **Міграції:** Alembic
+- **База даних:** PostgreSQL 17
+- **Аутентифікація:** JWT (python-jose)
+- **Валідація:** Pydantic 2.0
+- **Тестування:** pytest 9.0.2
+- **Контейнеризація:** Docker + Docker Compose
+- **Менеджер залежностей:** uv
+
+---
+
+## Схема бази даних
+
+Система включає **11 основних таблиць**, пов'язаних між собою:
+
+### Основні сутності:
+- **users** - користувачі системи
+- **channels** - канали авторів
+- **videos** - відеоматеріали
+- **comments** - коментарі до відео
+- **views** - історія переглядів
+- **subscription** - підписки користувачів на канали
+- **paid_subscriptions** - платні підписки
+- **playlists** - плейлисти користувачів
+- **playlist_video** - зв'язок плейлистів та відео
+- **reports** - скарги на відео
+- **channel_strikes** - штрафи для каналів
+
+### Індекси для оптимізації
+
+База даних використовує **12 індексів** на найчастіше запитуваних колонках:
+
+- **users**: `is_deleted` - фільтрація активних користувачів
+- **channels**: `owner_id` - пошук каналів користувача
+- **videos**: `is_active`, `channel_id` - фільтрація активних відео та відео каналу
+- **comments**: `commented_at`, `video_id`, `user_id` - сортування та пошук коментарів
+- **views**: `watched_at`, `user_id` - аналітика переглядів та історія користувача
+- **reports**: `is_resolved`, `reporter_id`, `video_id` - модерація та аналіз скарг
+
+Індекси забезпечують швидку роботу JOIN операцій, фільтрації WHERE та сортування ORDER BY на великих обсягах даних.
+
+**Детальна документація схеми:** [`docs/schema.md`](docs/schema.md)  
+**Складні SQL-запити:** [`docs/queries.md`](docs/queries.md)
+
+---
+
+## Швидкий старт
+
+### Передумови
+
+- **Docker Desktop** та **Docker Compose** встановлені
+- **Git**
+- **Python 3.11+** (тільки для локальної розробки без Docker)
+- **uv** - менеджер пакетів Python
+
+### Крок 1: Клонування репозиторію
+
+```bash
+git clone https://github.com/Mr-Chekaut-Dungeon-IM-42/databases-2025-yeahtube.git
+cd databases-2025-yeahtube
 ```
 
-## Міграція №1: додавання поля у таблицю
+### Крок 2: Налаштування змінних оточення
 
-Зміни у визначенні моделей:
+**1. Скопіюйте приклад конфігурації:**
 
-```diff
- class Subscription(Base):
-     __tablename__ = "subscription"
-  
-     user_id: Mapped[int] = mapped_column(
-         Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-     )
-     channel_id: Mapped[int] = mapped_column(
-         Integer, ForeignKey("channels.id", ondelete="CASCADE"), primary_key=True
-     )
-+    is_premium: Mapped[bool] = mapped_column(Boolean, default=False)
-
-     user: Mapped[User] = relationship("User", back_populates="subscriptions")
-     channel: Mapped[Channel] = relationship("Channel", back_populates="subscribers")
+```bash
+cp .env.example .env
 ```
 
-Версія бази даних:
-[`5d339deb073c_add_premium_subscriptions.py`](https://github.com/Mr-Chekaut-Dungeon-IM-42/databases-2025/blob/main/lab6/src/alembic/versions/5d339deb073c_add_premium_subscriptions.py)
+**2. Відредагуйте файл `.env`:**
 
-Вигляд таблиці `subscription` після міграції:
-
-```sql
-db_labs=# select * from subscription;
- user_id | channel_id | is_premium 
----------+------------+------------
-       3 |          2 | f
-       3 |          1 | f
-       2 |          1 | f
-(3 rows)
+```env
+DB_URL=postgresql://admin:password@postgres:5432/yeahtube
+JWT_SECRET=your-secret-key-min-32-chars
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-## Міграція №2: створення таблиці
+**3. Підключення до бази даних:**
 
-Зміни у визначенні моделей:
+- **Для Docker (рекомендовано):** Використовуйте ім'я сервісу `postgres`
+- **Для локальної розробки:** Використовуйте `localhost`
 
-```python
-class Moderator(Base):
-    __tablename__ = "moderators"
+### Крок 3: Запуск через Docker (рекомендовано)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    created_at: Mapped[str] = mapped_column(
-        Date, nullable=False, server_default=func.now()
-    )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
+```bash
+# Запуск контейнерів (PostgreSQL + pgAdmin)
+docker compose up -d
 
-    user: Mapped[User] = relationship("User", back_populates="moderators")
+# Перевірка логів
+docker compose logs -f app
 ```
 
-Ручні зміни у згенерованій міграції:
+**Доступ до застосунку:**
 
-```python
-op.bulk_insert(
-    sa.Table("moderators", Base.metadata),
-    [{"id": 1, "created_at": "2025-12-07", "user_id": 1}],
-)
+- **API сервер:** `http://localhost:8000`
+- **API документація (Swagger):** `http://localhost:8000/docs`
+- **pgAdmin (UI для бази даних):** `http://localhost:5050`
+  - Email: `admin@yeahtube.com`
+  - Пароль: `admin`
+
+### Крок 4: Локальна розробка
+
+```bash
+1. docker compose watch
+
+2. uv sync
+
+3. source .venv/bin/activate  # Linux/macOS
+# або
+.venv\Scripts\activate  # Windows
+
+4. make migrate-upgrade-head
+
+5. make populate
+
 ```
 
-Версія бази даних:
-[`ad14dc436a24_add_moderator_users.py`](https://github.com/Mr-Chekaut-Dungeon-IM-42/databases-2025/blob/main/lab6/src/alembic/versions/ad14dc436a24_add_moderator_users.py)
+---
 
-Вигляд таблиці `moderators` після міграції:
+## Запуск тестів
 
-```sql
-db_labs=# select * from moderators;
- id | created_at | user_id 
-----+------------+---------
-  1 | 2025-12-07 |       1
-(1 row)
+### Автоматизоване тестування
+
+Запуск всіх тестів у ізольованому Docker-оточенні.
+
+```bash
+# Перший запуск - створення тестової бази
+docker compose up test_db -d
+
+# Запуск тестів
+make test
+
+# Запуск конкретного файлу
+pytest tests/test_admin.py
+
 ```
 
-## Міграція №3: видалення таблиці
+## Структура проєкту
 
-Зміни у визначенні моделей:
-
-```diff
-- class Playlist(Base):
--     __tablename__ = "playlists"
-- 
--     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
--     name: Mapped[str] = mapped_column(String(64), nullable=False)
--     created_at: Mapped[str] = mapped_column(
--         Date, nullable=False, server_default=text("CURRENT_DATE")
--     )
--     author_id: Mapped[int] = mapped_column(
--         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
--     )
-- 
--     author: Mapped[User] = relationship("User", back_populates="playlists")
--     videos: Mapped[list["PlaylistVideo"]] = relationship(
--         "PlaylistVideo", back_populates="playlist", cascade="all, delete-orphan"
--     )
-- 
-- 
-- class PlaylistVideo(Base):
--     __tablename__ = "playlist_video"
-- 
--     playlist_id: Mapped[int] = mapped_column(
--         Integer, ForeignKey("playlists.id", ondelete="CASCADE"), primary_key=True
--     )
--     video_id: Mapped[int] = mapped_column(
--         Integer, ForeignKey("videos.id", ondelete="CASCADE"), primary_key=True
--     )
-- 
--     playlist: Mapped[Playlist] = relationship("Playlist", back_populates="videos")
--     video: Mapped[Video] = relationship("Video", back_populates="playlist_entries")
-
-...
-
- class Video(Base):
-     __tablename__ = "videos"
-     __table_args__ = (
-         CheckConstraint("length(title) <= 128", name="ck_videos_title_length"),
-         CheckConstraint(
-             "length(description) <= 256", name="ck_videos_description_length"
-         ),
-     )
- 
-     ...
- 
--     playlist_entries: Mapped[list["PlaylistVideo"]] = relationship(
--         "PlaylistVideo", back_populates="video", cascade="all, delete-orphan"
--     )
-
- class User(Base):
-     __tablename__ = "users"
- 
-     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-     username: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
-     email: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-     created_at: Mapped[str] = mapped_column(Date, nullable=False)
- 
-     channels: Mapped[list["Channel"]] = relationship(
-         "Channel", back_populates="owner", cascade="all, delete-orphan"
-     )
-     comments: Mapped[list["Comment"]] = relationship(
-         "Comment", back_populates="user", cascade="all, delete-orphan"
-     )
--     playlists: Mapped[list["Playlist"]] = relationship(
--         "Playlist", back_populates="author", cascade="all, delete-orphan"
--    )
-     subscriptions: Mapped[list["Subscription"]] = relationship(
-         "Subscription", back_populates="user", cascade="all, delete-orphan"
-     )
-     views: Mapped[list["View"]] = relationship(
-         "View", back_populates="user", cascade="all, delete-orphan"
-     )
+```
+databases-2025-yeahtube/
+├── app/
+│   ├── alembic/                # Міграції бази даних
+│   │   └── versions/           # Файли міграцій
+│   ├── db/
+│   │   ├── models.py           # SQLAlchemy моделі
+│   │   └── session.py          # Конфігурація сесії БД
+│   ├── routers/
+│   │   ├── admin.py            # Ендпоінти адміністратора
+│   │   ├── auth.py             # Аутентифікація (JWT)
+│   │   ├── channel.py          # Управління каналами
+│   │   ├── user.py             # Управління користувачами
+│   │   └── video.py            # Управління відео
+│   ├── schemas/
+│   │   └── schemas.py          # Pydantic схеми
+│   ├── utils/
+│   │   ├── auth.py             # Утиліти аутентифікації
+│   │   └── populate.py         # Скрипт наповнення БД
+│   ├── main.py                 # Головний файл FastAPI
+│   ├── dependencies.py         # Залежності для роутерів
+│   └── alembic.ini             # Конфігурація Alembic
+│
+├── tests/
+│   ├── conftest.py             # Fixtures для тестів
+│   ├── test_admin.py           # Тести адміністратора
+│   └── test_user.py            # Тести користувачів
+│
+├── docs/
+│   ├── schema.md               # Документація схеми БД
+│   └── queries.md              # Документація складних запитів
+│
+├── compose.yml                 # Docker Compose конфігурація
+├── Dockerfile                  # Docker образ
+├── pyproject.toml              # Конфігурація проєкту та залежності
+├── uv.lock                     # Lock-файл залежностей
+└── README.md                   # Ця документація
 ```
 
-Версія бази даних:
-[`e3d90608cd2d_remove_playlists.py`](https://github.com/Mr-Chekaut-Dungeon-IM-42/databases-2025/blob/main/lab6/src/alembic/versions/e3d90608cd2d_remove_playlists.py)
+---
 
-Вигляд таблиці `playlists` після міграції:
+## Приклади використання API
 
-```sql
-db_labs=# select from playlists;
-ERROR:  relation "playlists" does not exist
-LINE 1: select from playlists;
-                    ^
+### Реєстрація користувача
+
+```bash
+curl -X POST "http://localhost:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john_doe",
+    "email": "john@example.com",
+    "password": "securepassword123"
+  }'
 ```
+
+### Вхід (отримання JWT токену)
+
+```bash
+curl -X POST "http://localhost:8000/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=john@example.com&password=securepassword123"
+```
+
+Відповідь:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+### Створення каналу
+
+```bash
+curl -X POST "http://localhost:8000/channels/" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Tech Reviews Channel",
+    "description": "Reviews of latest tech gadgets"
+  }'
+```
+
+### Завантаження відео
+
+```bash
+curl -X POST "http://localhost:8000/videos/" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "My First Video",
+    "description": "Introduction to my channel",
+    "channel_id": 1,
+    "video_url": "https://example.com/video.mp4"
+  }'
+```
+
+### Перегляд рекомендацій (персоналізовані)
+
+```bash
+curl -X GET "http://localhost:8000/videos/recommendations?limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Адміністративні операції
+
+**Деактивація відео (тільки для модераторів):**
+
+```bash
+curl -X PUT "http://localhost:8000/admin/videos/123/deactivate" \
+  -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "Порушення правил спільноти"
+  }'
+```
+
+**Додавання штрафу каналу:**
+
+```bash
+curl -X POST "http://localhost:8000/admin/channels/5/strikes" \
+  -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reason": "Повторне порушення правил",
+    "severity": "major"
+  }'
+```
+
+**Аналітика проблемних каналів:**
+
+```bash
+curl -X GET "http://localhost:8000/admin/analytics/problematic-channels?min_reports=5" \
+  -H "Authorization: Bearer ADMIN_JWT_TOKEN"
+```
+
+---
+
+## Інструкції до міграцій
+
+### Застосування всіх міграцій
+
+```bash
+make migrate-upgrade-head
+```
+
+### Створення нової міграції
+
+```bash
+make generate-migration message="test_for_migration"
+```
+
+### Відкат міграції
+
+```bash
+make migrate-downgrade-one
+```
+
+## Наповнення бази тестовими даними
+
+```bash
+make populate
+```
+
+Скрипт створить:
+- 10 користувачів (включаючи 1 модератора)
+- 5 каналів
+- 20 відео
+- 50 коментарів
+- 100 переглядів
+- Підписки, плейлисти та скарги
+
+---
+
+## Документація
+
+- **Схема бази даних:** [`docs/schema.md`](docs/schema.md) - повний опис всіх таблиць, зв'язків та дизайн-рішень
+- **Складні запити:** [`docs/queries.md`](docs/queries.md) - документація аналітичних SQL-запитів з поясненнями
+- **API документація:** `http://localhost:8000/docs` (Swagger UI)
+- **Swagger:** `http://localhost:8000/docs` (альтернативний інтерфейс API документації)
