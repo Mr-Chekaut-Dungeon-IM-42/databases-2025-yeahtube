@@ -104,15 +104,17 @@ async def get_video_stats(video_id: int, db: DBDep):
         select(
             func.count(View.user_id).label("total_views"),
             func.count(View.user_id).filter(View.reaction == "Liked").label("likes"),
-            func.count(View.user_id).filter(View.reaction == "Disliked").label("dislikes"),
-            func.count(Comment.id).label("total_comments")
+            func.count(View.user_id).filter(View.reaction == "Disliked").label("dislikes")
         )
         .select_from(View)
-        .outerjoin(Comment, Comment.video_id == View.video_id)
         .where(View.video_id == video_id)
     ).one()
     
-    total_views, likes, dislikes, total_comments = stats
+    total_views, likes, dislikes = stats
+    
+    total_comments = db.scalar(
+        select(func.count(Comment.id)).where(Comment.video_id == video_id)
+    ) or 0
     
     return VideoStatsResponse(
         video_id=video_id,
@@ -120,7 +122,7 @@ async def get_video_stats(video_id: int, db: DBDep):
         total_views=total_views or 0,
         likes=likes or 0,
         dislikes=dislikes or 0,
-        total_comments=total_comments or 0
+        total_comments=total_comments
     )
 
 @router.get("/{video_id}/comments")
