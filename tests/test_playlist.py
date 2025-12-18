@@ -9,6 +9,7 @@ def test_create_playlist(client, db):
     user = User(
         username="create_tester",
         email="test@example.com",
+        hashed_password="fake_hash",
         created_at=date.today(),
         is_moderator=False
     )
@@ -35,6 +36,7 @@ def test_get_user_playlists(client, db):
     user = User(
         username="get_tester",
         email="test@example.com",
+        hashed_password="fake_hash",
         created_at=date.today(),
         is_moderator=False
     )
@@ -63,6 +65,7 @@ def test_get_single_playlist(client, db):
     user = User(
         username="single_tester", 
         email="test@example.com", 
+        hashed_password="fake_hash",
         created_at=date.today(), 
         is_moderator=False
     )
@@ -88,6 +91,7 @@ def test_update_playlist(client, db):
     user = User(
         username="update_tester", 
         email="test@example.com", 
+        hashed_password="fake_hash",
         created_at=date.today(), 
         is_moderator=False
     )
@@ -115,6 +119,7 @@ def test_delete_playlist(client, db):
     user = User(
         username="delete_tester", 
         email="test@example.com", 
+        hashed_password="fake_hash",
         created_at=date.today(), 
         is_moderator=False
     )

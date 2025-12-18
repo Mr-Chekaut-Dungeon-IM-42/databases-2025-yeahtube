@@ -1,6 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 
-from app.db.models import User, Report, Channel, View, Video, Subscription
+from app.db.models import User, Report, Channel, View, Video, Subscription, Comment
+
 
 def test_get_users(client, db):
     user1 = User(
@@ -284,3 +285,150 @@ def test_user_credibility(client, db):
     
     response = client.get(f"/user/{reporter.id}/credibility")
     assert response.status_code == 410
+
+def test_get_user_year_views(client, db):
+    user = User(
+        username="stats_user_1", 
+        email="stats1@example.com", 
+        hashed_password="fake_hash", 
+        created_at=date.today()
+    )
+    db.add(user)
+    db.commit()
+
+    channel = Channel(name="TechChannel", owner_id=user.id, created_at=date.today())
+    db.add(channel)
+    db.commit()
+    
+    video = Video(title="Video 1", channel_id=channel.id, uploaded_at=date.today())
+    db.add(video)
+    db.commit()
+
+    view_current = View(
+        user_id=user.id, 
+        video_id=video.id, 
+        watched_at=date.today()
+    )
+    last_year_date = date(datetime.now().year - 1, 1, 1)
+    
+    video2 = Video(title="Video 2", channel_id=channel.id, uploaded_at=last_year_date)
+    db.add(video2)
+    db.commit()
+
+    view_old = View(
+        user_id=user.id, 
+        video_id=video2.id, 
+        watched_at=last_year_date
+    )
+    
+    db.add_all([view_current, view_old])
+    db.commit()
+
+    response = client.get(f"/user/{user.id}/views")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["user_id"] == user.id
+    assert data["total_views"] == 1
+    assert data["year"] == datetime.now().year
+
+
+def test_get_user_favorite_creator(client, db):
+    user = User(username="stats_user_2", email="stats2@example.com", hashed_password="fake_hash", created_at=date.today())
+    creator1 = User(username="creator_1", email="c1@example.com", hashed_password="fake_hash", created_at=date.today())
+    creator2 = User(username="creator_2", email="c2@example.com", hashed_password="fake_hash", created_at=date.today())
+    db.add_all([user, creator1, creator2])
+    db.commit()
+
+    chan1 = Channel(name="GamingHub", owner_id=creator1.id, created_at=date.today())
+    chan2 = Channel(name="Cooking101", owner_id=creator2.id, created_at=date.today())
+    db.add_all([chan1, chan2])
+    db.commit()
+
+    vid1_c1 = Video(title="Game 1", channel_id=chan1.id, uploaded_at=date.today())
+    vid2_c1 = Video(title="Game 2", channel_id=chan1.id, uploaded_at=date.today())
+    vid1_c2 = Video(title="Soup Recipe", channel_id=chan2.id, uploaded_at=date.today())
+    db.add_all([vid1_c1, vid2_c1, vid1_c2])
+    db.commit()
+
+    v1 = View(user_id=user.id, video_id=vid1_c1.id, watched_at=date.today())
+    v2 = View(user_id=user.id, video_id=vid2_c1.id, watched_at=date.today())
+    v3 = View(user_id=user.id, video_id=vid1_c2.id, watched_at=date.today())
+    db.add_all([v1, v2, v3])
+    db.commit()
+
+    response = client.get(f"/user/{user.id}/favoriteCreator")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["favorite_creator"] == "GamingHub"
+    assert data["videos_watched"] == 2
+
+    user_empty = User(username="empty", email="empty@example.com", hashed_password="fake_hash", created_at=date.today())
+    db.add(user_empty)
+    db.commit()
+    
+    response = client.get(f"/user/{user_empty.id}/favoriteCreator")
+    assert response.status_code == 200
+    assert response.json()["favorite_creator"] is None
+
+
+def test_get_user_year_reactions(client, db):
+    user = User(username="stats_user_3", email="stats3@example.com", hashed_password="fake_hash", created_at=date.today())
+    db.add(user)
+    db.commit()
+    
+    chan = Channel(name="ReactChan", owner_id=user.id, created_at=date.today())
+    db.add(chan)
+    db.commit()
+    
+    video = Video(title="React Video", channel_id=chan.id, uploaded_at=date.today())
+    video2 = Video(title="React Video 2", channel_id=chan.id, uploaded_at=date.today())
+    db.add_all([video, video2])
+    db.commit()
+
+    c1 = Comment(comment_text="Nice", user_id=user.id, video_id=video.id, commented_at=date.today())
+    v1 = View(user_id=user.id, video_id=video.id, watched_at=date.today(), reaction="LIKE")
+    
+    db.add_all([c1, v1])
+    db.commit()
+
+    response = client.get(f"/user/{user.id}/reactions")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["total_reactions"] == 2
+
+
+def test_get_user_avg_view_time(client, db):
+    user = User(username="stats_user_4", email="stats4@example.com", hashed_password="fake_hash", created_at=date.today())
+    db.add(user)
+    db.commit()
+    
+    chan = Channel(name="AvgChan", owner_id=user.id, created_at=date.today())
+    db.add(chan)
+    db.commit()
+    
+    video1 = Video(title="Avg Video 1", channel_id=chan.id, uploaded_at=date.today())
+    video2 = Video(title="Avg Video 2", channel_id=chan.id, uploaded_at=date.today())
+    db.add_all([video1, video2])
+    db.commit()
+
+    v1 = View(user_id=user.id, video_id=video1.id, watched_at=date.today(), watched_percentage=0.50)
+    v2 = View(user_id=user.id, video_id=video2.id, watched_at=date.today(), watched_percentage=1.00)
+    
+    db.add_all([v1, v2])
+    db.commit()
+
+    response = client.get(f"/user/{user.id}/averageViewTime")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["average_view_percents"] == 75.0
+
+    user_new = User(username="noviews", email="noviews@example.com", hashed_password="fake_hash", created_at=date.today())
+    db.add(user_new)
+    db.commit()
+    
+    response = client.get(f"/user/{user_new.id}/averageViewTime")
+    assert response.json()["average_view_percents"] == 0.0
