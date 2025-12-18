@@ -1,24 +1,25 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.repositories.admin import AdminRepository
 from app.schemas.schemas import (
     ChannelAnalyticsListResponse,
     ChannelAnalyticsResponse,
-    ChannelInfo,
+    ChannelInfoBrief,
     ChannelStrikeResponse,
     DetailedReportResponse,
     DetailedReportsListResponse,
-    ProblematicUsersListResponse,
     ProblematicUserResponse,
-    ReportResolveResponse,
-    ReportStats,
-    ReportsListResponse,
+    ProblematicUsersListResponse,
     ReporterInfo,
+    ReportResolveResponse,
+    ReportResponse,
+    ReportsListResponse,
+    ReportStats,
     UserBanResponse,
     VideoDeactivateResponse,
     VideoDemonetizeResponse,
     VideoInfo,
-    ReportResponse,
 )
 
 
@@ -190,9 +191,9 @@ class AdminService:
                     created_at=report.created_at,
                     is_resolved=report.is_resolved,
                     reporter=ReporterInfo(id=report.reporter_id, username=username),
-                    video=VideoInfo(id=report.video_id, title=title),
+                    video=VideoInfo(id=report.video_id, title=title, views=views),
                 )
-                for report, username, title in results
+                for report, username, title, views in results
             ],
             count=len(results),
             skip=skip,
@@ -231,7 +232,7 @@ class AdminService:
         return ChannelAnalyticsListResponse(
             analytics=[
                 ChannelAnalyticsResponse(
-                    channel=ChannelInfo(
+                    channel=ChannelInfoBrief(
                         id=channel_id,
                         name=channel_name,
                         strikes=strikes,

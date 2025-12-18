@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
+
 from app.db.session import DBDep
 from app.dependencies import require_admin
-from app.services.admin import AdminService
 from app.schemas.schemas import (
     ChannelAnalyticsListResponse,
     ChannelStrikeResponse,
@@ -13,6 +13,7 @@ from app.schemas.schemas import (
     VideoDeactivateResponse,
     VideoDemonetizeResponse,
 )
+from app.services.admin import AdminService
 
 router = APIRouter(
     tags=["admin"], prefix="/admin", dependencies=[Depends(require_admin)]

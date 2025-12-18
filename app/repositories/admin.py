@@ -1,6 +1,8 @@
 from datetime import timedelta
+
 from sqlalchemy import Float, Integer, func, select
 from sqlalchemy.orm import Session
+
 from app.db.models import Channel, ChannelStrike, Report, User, Video
 
 
@@ -64,7 +66,7 @@ class AdminRepository:
         db: Session, resolved: bool | None = None, skip: int = 0, limit: int = 50
     ):
         query = (
-            select(Report, User.username, Video.title)
+            select(Report, User.username, Video.title, Video.views)
             .join(User, Report.reporter_id == User.id)
             .join(Video, Report.video_id == Video.id)
         )

@@ -1,6 +1,8 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+
 from app.repositories.playlist import PlaylistRepository
+
 
 class PlaylistService:
     @staticmethod
@@ -12,7 +14,7 @@ class PlaylistService:
             "id": playlist.id,
             "name": playlist.name,
             "created_at": playlist.created_at,
-            "author_id": playlist.author_id
+            "author_id": playlist.author_id,
         }
 
     @staticmethod
@@ -25,7 +27,7 @@ class PlaylistService:
                 "id": p.id,
                 "name": p.name,
                 "created_at": p.created_at,
-                "author_id": p.author_id
+                "author_id": p.author_id,
             }
             for p in playlists
         ]
@@ -39,7 +41,7 @@ class PlaylistService:
             "id": playlist.id,
             "name": playlist.name,
             "created_at": playlist.created_at,
-            "author_id": playlist.author_id
+            "author_id": playlist.author_id,
         }
 
     @staticmethod
@@ -52,7 +54,7 @@ class PlaylistService:
             "id": playlist.id,
             "name": playlist.name,
             "created_at": playlist.created_at,
-            "author_id": playlist.author_id
+            "author_id": playlist.author_id,
         }
 
     @staticmethod

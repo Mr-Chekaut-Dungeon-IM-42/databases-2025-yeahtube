@@ -11,8 +11,9 @@ class VideoResponse(BaseModel):
     uploaded_at: date
     is_active: bool
     is_monetized: bool
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class VideoCreate(BaseModel):
     title: str = Field(..., max_length=128)
@@ -28,6 +29,7 @@ class VideoUpdate(BaseModel):
     is_active: bool | None = None
     is_monetized: bool | None = None
 
+
 class VideoWithCommentCreate(BaseModel):
     title: str = Field(..., max_length=128)
     description: str | None = Field(None, max_length=256)
@@ -36,10 +38,12 @@ class VideoWithCommentCreate(BaseModel):
     is_active: bool | None = True
     is_monetized: bool | None = False
 
+
 class VideoWithCommentResponse(BaseModel):
     video: VideoResponse
     comment_id: int
     comment_text: str
+
 
 class VideoDeactivateResponse(BaseModel):
     message: str
@@ -58,6 +62,8 @@ class VideoDemonetizeResponse(BaseModel):
 class VideoInfo(BaseModel):
     id: int
     title: str
+    views: int
+
 
 class VideoStatsResponse(BaseModel):
     video_id: int
@@ -66,6 +72,7 @@ class VideoStatsResponse(BaseModel):
     likes: int
     dislikes: int
     total_comments: int
+
 
 class CommentResponse(BaseModel):
     id: int
@@ -83,6 +90,7 @@ class VideoCommentsResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
 
 class UserCreate(BaseModel):
     username: str
@@ -126,8 +134,8 @@ class UserDetailedResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class UserCredibilityResponse(BaseModel):
-    
     user_id: int
     username: str
     total_reports: int
@@ -135,6 +143,7 @@ class UserCredibilityResponse(BaseModel):
     credibility_score: float
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class UserBanResponse(BaseModel):
     message: str
@@ -192,15 +201,31 @@ class ChannelStrikeResponse(BaseModel):
     strikes: int
 
 
-class ChannelInfo(BaseModel):
+class ChannelInfoBrief(BaseModel):
     id: int
     name: str
-    strikes: int
     owner_username: str
+    strikes: int
+
+
+class ChannelInfoFull(BaseModel):
+    id: int
+    name: str
+    owner_id: int
+    owner_name: str
+    subscribers: int
+    total_views: int
+    strike_count: int
+    videos: list[VideoInfo]
+
+
+class ChannelRevenue(BaseModel):
+    channel_id: int
+    revenue_usd: str
 
 
 class ChannelAnalyticsResponse(BaseModel):
-    channel: ChannelInfo
+    channel: ChannelInfoBrief
     report_stats: "ReportStats"
     risk_level: str = Field(description="Risk level: LOW, MEDIUM, or HIGH")
 

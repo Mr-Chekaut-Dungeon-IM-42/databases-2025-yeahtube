@@ -77,16 +77,18 @@ class ChannelStrike(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     duration: Mapped[timedelta] = mapped_column(Interval)
     video_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("videos.id"), nullable=True
+        Integer, ForeignKey("videos.id", ondelete="CASCADE"), nullable=True
     )
     channel_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("channels.id", ondelete="CASCADE"), index=True
     )
 
     video: Mapped[Video | None] = relationship(
-        "Video", back_populates="channel_strikes"
+        "Video", back_populates="channel_strikes", cascade="all"
     )
-    channel: Mapped[Channel] = relationship("Channel", back_populates="channel_strikes")
+    channel: Mapped[Channel] = relationship(
+        "Channel", back_populates="channel_strikes", cascade="all"
+    )
 
 
 class Channel(Base):
@@ -129,7 +131,10 @@ class Video(Base):
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False, index=True)
     is_monetized: Mapped[bool] = mapped_column(default=False, nullable=False)
     channel_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("channels.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     channel: Mapped[Channel] = relationship("Channel", back_populates="videos")
@@ -215,14 +220,14 @@ class Subscription(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=true())
     paid_subs: Mapped[list[PaidSubscription]] = relationship(
-        "PaidSubscription", back_populates="subscription"
+        "PaidSubscription", back_populates="subscription", cascade="all, delete-orphan"
     )
 
     user: Mapped[User] = relationship("User", back_populates="subscriptions")
     channel: Mapped[Channel] = relationship("Channel", back_populates="subscribers")
 
 
-class PaidSubTier(enum.Enum):
+class PaidSubTier(float, enum.Enum):
     BRONZE = 4.99
     SILVER = 7.49
     GOLD = 9.99
@@ -235,6 +240,7 @@ class PaidSubscription(Base):
         ForeignKeyConstraint(
             ["sub_user_id", "sub_channel_id"],
             ["subscription.user_id", "subscription.channel_id"],
+            ondelete="CASCADE",  # i didn't want that but i'm lazy
         ),
     )
 
@@ -248,7 +254,9 @@ class PaidSubscription(Base):
     sub_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     sub_channel_id: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    subscription: Mapped[Subscription] = relationship("Subscription", back_populates="paid_subs")
+    subscription: Mapped[Subscription] = relationship(
+        "Subscription", back_populates="paid_subs", cascade="all"
+    )
 
 
 class View(Base):
