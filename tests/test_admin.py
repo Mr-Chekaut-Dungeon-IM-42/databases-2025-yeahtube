@@ -162,9 +162,6 @@ def test_ban_user(client, db, admin_headers):
     assert response.status_code == 404
 
 
-@pytest.mark.skip(
-    reason="Channel.strikes field does not exist in models - needs to be fixed in admin.py"
-)
 def test_add_channel_strike(client, db, admin_headers):
     owner = User(
         username="owner",
@@ -500,9 +497,6 @@ def test_get_problematic_users(client, db, admin_headers):
     assert data["min_reports_threshold"] == 2
 
 
-@pytest.mark.skip(
-    reason="Channel.strikes field does not exist in models - needs to be fixed in admin.py"
-)
 def test_get_channels_with_reports_analytics(client, db, admin_headers):
     owner = User(
         username="owner",
