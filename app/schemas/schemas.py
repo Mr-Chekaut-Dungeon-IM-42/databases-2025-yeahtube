@@ -2,12 +2,13 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+
 class VideoResponse(BaseModel):
     id: int
     title: str
     channel_id: int
     uploaded_at: date
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -28,6 +29,7 @@ class VideoDemonetizeResponse(BaseModel):
 class VideoInfo(BaseModel):
     id: int
     title: str
+    views: int
 
 
 class UserCreate(BaseModel):
@@ -47,7 +49,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_banned: bool
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -58,7 +60,7 @@ class UserOut(BaseModel):
     is_moderator: bool
     is_banned: bool
     created_at: date
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -129,15 +131,31 @@ class ChannelStrikeResponse(BaseModel):
     strikes: int
 
 
-class ChannelInfo(BaseModel):
+class ChannelInfoBrief(BaseModel):
     id: int
     name: str
-    strikes: int
     owner_username: str
+    strikes: int
+
+
+class ChannelInfoFull(BaseModel):
+    id: int
+    name: str
+    owner_id: int
+    owner_name: str
+    subscribers: int
+    total_views: int
+    strike_count: int
+    videos: list[VideoInfo]
+
+
+class ChannelRevenue(BaseModel):
+    channel_id: int
+    revenue_usd: str
 
 
 class ChannelAnalyticsResponse(BaseModel):
-    channel: ChannelInfo
+    channel: ChannelInfoBrief
     report_stats: "ReportStats"
     risk_level: str = Field(description="Risk level: LOW, MEDIUM, or HIGH")
 
