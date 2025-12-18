@@ -72,6 +72,15 @@ class UserDetailedResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserCredibilityResponse(BaseModel):
+    
+    user_id: int
+    username: str
+    total_reports: int
+    approved_reports: int
+    credibility_score: float
+
+    model_config = ConfigDict(from_attributes=True)
 
 class UserBanResponse(BaseModel):
     message: str

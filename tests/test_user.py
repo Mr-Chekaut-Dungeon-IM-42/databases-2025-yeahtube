@@ -1,8 +1,6 @@
 from datetime import date
 
-from app.db.models import User, Channel, View, Video, Subscription
-from sqlalchemy import select
-
+from app.db.models import User, Report, Channel, View, Video, Subscription
 
 def test_get_users(client, db):
     user1 = User(
@@ -215,3 +213,74 @@ def test_recommendations(client, db):
     assert video_ids[1] == video1_ch1.id
     assert video_ids[2] == video1_ch2.id
     assert video_ids[3] == video1_ch3.id
+
+def test_user_credibility(client, db):
+    reporter = User(
+        username="reporter",
+        email="reporter@example.com",
+        hashed_password="fake_hash",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+        is_banned=False,
+    )
+    creator = User(
+        username="creator",
+        email="creator@example.com",
+        hashed_password="fake_hash",
+        created_at=date.today(),
+        is_moderator=False,
+        is_deleted=False,
+        is_banned=False,
+    )
+    db.add_all([reporter, creator])
+    db.commit()
+
+    channel = Channel(name="Test Channel", created_at=date.today(), owner=creator)
+    db.add(channel)
+    db.commit()
+    
+    video = Video(title="Test Video", channel=channel, uploaded_at=date.today())
+    db.add(video)
+    db.commit()
+
+    for i in range(10):
+        is_resolved = i < 7
+        report = Report(
+            reason=f"Test report {i}",
+            created_at=date.today(),
+            is_resolved=is_resolved,
+            reporter=reporter,
+            video=video,
+        )
+        db.add(report)
+    db.commit()
+
+    response = client.get(f"/user/{reporter.id}/credibility")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["user_id"] == reporter.id
+    assert data["username"] == "reporter"
+    assert data["total_reports"] == 10
+    assert data["approved_reports"] == 7
+    assert data["credibility_score"] == 70.0
+
+    response = client.get(f"/user/{creator.id}/credibility")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["user_id"] == creator.id
+    assert data["username"] == "creator"
+    assert data["total_reports"] == 0
+    assert data["approved_reports"] == 0
+    assert data["credibility_score"] == 0.0
+
+    response = client.get("/user/99999/stats/credibility")
+    assert response.status_code == 404
+
+    reporter.is_deleted = True
+    db.commit()
+    
+    response = client.get(f"/user/{reporter.id}/credibility")
+    assert response.status_code == 410
