@@ -2,12 +2,13 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+
 class VideoResponse(BaseModel):
     id: int
     title: str
     channel_id: int
     uploaded_at: date
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -47,7 +48,7 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_banned: bool
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -58,7 +59,7 @@ class UserOut(BaseModel):
     is_moderator: bool
     is_banned: bool
     created_at: date
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -151,7 +152,7 @@ class ChannelAnalyticsListResponse(BaseModel):
 class ReportResponse(BaseModel):
     id: int
     reason: str
-    created_at: str
+    created_at: date
     is_resolved: bool
     reporter_id: int
     video_id: int
@@ -165,7 +166,7 @@ class ReporterInfo(BaseModel):
 class DetailedReportResponse(BaseModel):
     id: int
     reason: str
-    created_at: str
+    created_at: date
     is_resolved: bool
     reporter: ReporterInfo
     video: VideoInfo
