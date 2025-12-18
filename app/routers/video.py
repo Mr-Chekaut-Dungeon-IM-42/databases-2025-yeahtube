@@ -4,7 +4,7 @@ from datetime import date
 
 from app.db.models import Video, Channel, View, Comment, User
 from app.db.session import DBDep
-from app.schemas.schemas import VideoCreate, VideoUpdate, VideoResponse,  VideoStatsResponse, VideoCommentsResponse, CommentResponse
+from app.schemas.schemas import VideoCreate, VideoUpdate, VideoResponse, VideoWithCommentCreate, VideoStatsResponse, VideoCommentsResponse, CommentResponse, VideoWithCommentResponse
 
 router = APIRouter(tags=["video"], prefix="/video")
 
@@ -49,7 +49,9 @@ async def create_video(video_data: VideoCreate, db: DBDep):
 
 @router.patch("/{video_id}", response_model=VideoResponse)
 async def update_video(video_id: int, video_data: VideoUpdate, db: DBDep):
-    video = db.get(Video, video_id)
+    video = db.execute(
+        select(Video).where(Video.id == video_id).with_for_update()
+    ).scalar_one_or_none()
     
     if not video:
         raise HTTPException(
@@ -172,4 +174,47 @@ async def get_video_comments(
         page=page,
         limit=limit,
         total_pages=(total_count + limit - 1) // limit
+    )
+
+@router.post("/with-comment", status_code=status.HTTP_201_CREATED, response_model=VideoWithCommentResponse)
+async def create_video_with_comment(video_data: VideoWithCommentCreate, db: DBDep):
+    channel = db.get(Channel, video_data.channel_id)
+    if not channel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found")
+    
+    author = db.get(User, channel.owner_id)
+    if not author:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Channel owner not found")
+    
+    if author.is_deleted:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Channel owner has been deleted")
+    
+    if author.is_banned:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Channel owner is banned")
+    
+    video = Video(
+        title=video_data.title,
+        description=video_data.description,
+        uploaded_at=date.today(),
+        channel_id=video_data.channel_id,
+        is_active=video_data.is_active if video_data.is_active is not None else True,
+        is_monetized=video_data.is_monetized if video_data.is_monetized is not None else False,
+    )
+    db.add(video)
+    db.flush()
+    
+    comment = Comment(
+        comment_text=video_data.initial_comment,
+        user_id=author.id,
+        video_id=video.id,
+        commented_at=date.today()
+    )
+    db.add(comment)
+    
+    db.commit()
+    
+    return VideoWithCommentResponse(
+        video=video,
+        comment_id=comment.id,
+        comment_text=comment.comment_text
     )

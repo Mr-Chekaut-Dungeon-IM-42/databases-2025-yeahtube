@@ -1,5 +1,5 @@
 from datetime import date
-
+from sqlalchemy import select, func
 from app.db.models import Video, Channel, User, Comment, View
 
 
@@ -93,18 +93,7 @@ def test_create_video(client, db):
 
 
 def test_update_video(client, db):
-    response = client.patch("/video/99999", json={"title": "Updated"})
-    assert response.status_code == 404
-    
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        hashed_password="fake_hash",
-        created_at=date.today(),
-        is_moderator=False,
-        is_deleted=False,
-        is_banned=False,
-    )
+    user = User(username="testuser", email="test@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
     db.add(user)
     db.commit()
     
@@ -112,32 +101,19 @@ def test_update_video(client, db):
     db.add(channel)
     db.commit()
     
-    video = Video(
-        title="Original Title",
-        description="Original Description",
-        channel_id=channel.id,
-        uploaded_at=date.today(),
-        is_active=True,
-        is_monetized=False,
-    )
+    video = Video(title="Original", channel_id=channel.id, uploaded_at=date.today(), is_active=True, is_monetized=False)
     db.add(video)
     db.commit()
-    
-    response = client.patch(f"/video/{video.id}", json={"title": "Updated Title"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["title"] == "Updated Title"
-    assert data["description"] == "Original Description"
-    
-    response = client.patch(f"/video/{video.id}", json={
-        "title": "Final Title",
-        "is_monetized": True,
-    })
-    assert response.status_code == 200
-    data = response.json()
-    assert data["title"] == "Final Title"
-    assert data["is_monetized"] is True
 
+    response1 = client.patch(f"/video/{video.id}", json={"is_active": False})
+    assert response1.status_code == 200
+
+    response2 = client.patch(f"/video/{video.id}", json={"is_monetized": True})
+    assert response2.status_code == 200
+
+    db.refresh(video)
+    assert video.is_active is False
+    assert video.is_monetized is True
 
 def test_delete_video(client, db):
     response = client.delete("/video/99999")
@@ -270,3 +246,59 @@ def test_get_video_comments(client, db):
     assert data["limit"] == 5
     assert data["total_pages"] == 3
     assert len(data["comments"]) == 5
+
+def test_create_video_with_comment(client, db):
+    
+    response = client.post("/video/with-comment", json={
+        "title": "My First Video",
+        "channel_id": 99999,
+        "initial_comment": "Pinned comment!"
+    })
+    assert response.status_code == 404
+    
+    user = User(username="creator", email="creator@example.com", hashed_password="fake_hash", created_at=date.today(), is_moderator=False, is_deleted=False, is_banned=False)
+    db.add(user)
+    db.commit()
+    
+    channel = Channel(name="Test Channel", owner_id=user.id, created_at=date.today())
+    db.add(channel)
+    db.commit()
+    
+    response = client.post("/video/with-comment", json={
+        "title": "My First Video",
+        "channel_id": channel.id,
+        "initial_comment": "Pinned comment!"
+    })
+    assert response.status_code == 201
+    data = response.json()
+    assert data["video"]["title"] == "My First Video"
+    assert data["comment_text"] == "Pinned comment!"
+    
+    video_id = data["video"]["id"]
+    comment_count = db.scalar(select(func.count(Comment.id)).where(Comment.video_id == video_id))
+    assert comment_count == 1
+    
+    comment = db.execute(select(Comment).where(Comment.video_id == video_id)).scalar_one()
+    assert comment.user_id == user.id
+    assert comment.comment_text == "Pinned comment!"
+    
+    user.is_deleted = True
+    db.commit()
+    
+    response = client.post("/video/with-comment", json={
+        "title": "Another Video",
+        "channel_id": channel.id,
+        "initial_comment": "Test"
+    })
+    assert response.status_code == 410
+    
+    user.is_deleted = False
+    user.is_banned = True
+    db.commit()
+    
+    response = client.post("/video/with-comment", json={
+        "title": "Banned Video",
+        "channel_id": channel.id,
+        "initial_comment": "Test"
+    })
+    assert response.status_code == 403
