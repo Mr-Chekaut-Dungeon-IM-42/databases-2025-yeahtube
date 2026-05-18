@@ -1,8 +1,20 @@
+import sys
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
+
+
+# In Docker, we run from /app, while the python package lives in /app/app.
+# Depending on how `uv run pytest` sets up sys.path, we add both to be safe.
+REPO_ROOT = Path(__file__).resolve().parents[2]  # /app
+APP_DIR = REPO_ROOT / "app"  # /app/app
+for p in (str(APP_DIR), str(REPO_ROOT)):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from app.db.models import Base
 from app.db.session import get_session
@@ -11,6 +23,7 @@ from app.main import app
 TEST_DATABASE_URL = "postgresql://admin:password@postgres:5432/test_db"
 DEFAULT_DATABASE_URL = "postgresql://admin:password@postgres:5432/postgres"
 
+
 default_engine = create_engine(DEFAULT_DATABASE_URL, isolation_level="AUTOCOMMIT")
 with default_engine.connect() as conn:
     try:
@@ -18,6 +31,7 @@ with default_engine.connect() as conn:
     except ProgrammingError:
         pass
 default_engine.dispose()
+
 
 engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -64,4 +78,3 @@ def client(db):
         yield test_client
 
     app.dependency_overrides.clear()
-

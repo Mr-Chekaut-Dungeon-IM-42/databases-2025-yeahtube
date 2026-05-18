@@ -1,7 +1,9 @@
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
+from app.domain.errors import NotFoundError, ValidationError
+from app.infrastructure.mappers.orm_domain import channel_to_domain, user_to_domain, video_to_domain
 from app.repositories.admin import AdminRepository
-from app.schemas.schemas import (
+from app.presentation.schemas.schemas import (
     ChannelAnalyticsListResponse,
     ChannelAnalyticsResponse,
     ChannelInfo,
@@ -11,6 +13,7 @@ from app.schemas.schemas import (
     ProblematicUsersListResponse,
     ProblematicUserResponse,
     ReportResolveResponse,
+    ReportResponse,
     ReportStats,
     ReportsListResponse,
     ReporterInfo,
@@ -18,7 +21,6 @@ from app.schemas.schemas import (
     VideoDeactivateResponse,
     VideoDemonetizeResponse,
     VideoInfo,
-    ReportResponse,
 )
 
 
@@ -28,25 +30,21 @@ class AdminService:
         video = AdminRepository.get_video_by_id(db, video_id)
 
         if not video:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Video not found"
-            )
+            raise NotFoundError("Video not found")
 
         if not video.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Video is already inactive",
-            )
+            raise ValidationError("Video is already inactive")
 
         video.is_active = False
         db.commit()
         db.refresh(video)
+        d_video = video_to_domain(video)
 
         return VideoDeactivateResponse(
             message="Video deactivated successfully",
-            video_id=video.id,
-            title=video.title,
-            is_active=video.is_active,
+            video_id=d_video.id,
+            title=d_video.title.value,
+            is_active=d_video.is_active,
         )
 
     @staticmethod
@@ -54,25 +52,21 @@ class AdminService:
         video = AdminRepository.get_video_by_id(db, video_id)
 
         if not video:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Video not found"
-            )
+            raise NotFoundError("Video not found")
 
         if not video.is_monetized:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Video is already not monetized",
-            )
+            raise ValidationError("Video is already not monetized")
 
         video.is_monetized = False
         db.commit()
         db.refresh(video)
+        d_video = video_to_domain(video)
 
         return VideoDemonetizeResponse(
             message="Video demonetized successfully",
-            video_id=video.id,
-            title=video.title,
-            is_monetized=video.is_monetized,
+            video_id=d_video.id,
+            title=d_video.title.value,
+            is_monetized=d_video.is_monetized,
         )
 
     @staticmethod
@@ -80,24 +74,21 @@ class AdminService:
         user = AdminRepository.get_user_by_id(db, user_id)
 
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-            )
+            raise NotFoundError("User not found")
 
         if user.is_banned:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="User is already banned"
-            )
+            raise ValidationError("User is already banned")
 
         user.is_banned = True
         db.commit()
         db.refresh(user)
+        d_user = user_to_domain(user)
 
         return UserBanResponse(
             message="User banned successfully",
-            user_id=user.id,
-            username=user.username,
-            is_banned=user.is_banned,
+            user_id=d_user.id,
+            username=d_user.username.value,
+            is_banned=d_user.is_banned,
         )
 
     @staticmethod
@@ -105,14 +96,13 @@ class AdminService:
         channel = AdminRepository.get_channel_by_id(db, channel_id)
 
         if not channel:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Channel not found"
-            )
+            raise NotFoundError("Channel not found")
 
         AdminRepository.add_channel_strike(db, channel.id, video_id=None)
         db.commit()
 
         strikes_count = AdminRepository.get_channel_strikes_count(db, channel_id)
+        d_channel = channel_to_domain(channel)
 
         penalty_message = ""
         if strikes_count >= 3:
@@ -122,8 +112,8 @@ class AdminService:
 
         return ChannelStrikeResponse(
             message=f"Strike added to channel successfully.{penalty_message}",
-            channel_id=channel.id,
-            channel_name=channel.name,
+            channel_id=d_channel.id,
+            channel_name=d_channel.name.value,
             strikes=strikes_count,
         )
 
@@ -155,15 +145,10 @@ class AdminService:
         report = AdminRepository.get_report_by_id(db, report_id)
 
         if not report:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-            )
+            raise NotFoundError("Report not found")
 
         if report.is_resolved:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Report is already resolved",
-            )
+            raise ValidationError("Report is already resolved")
 
         report.is_resolved = True
         db.commit()
@@ -212,58 +197,57 @@ class AdminService:
                     username=username,
                     email=email,
                     is_banned=is_banned,
-                    reports_created=report_count,
+            reports_created=reports_count,
                 )
-                for user_id, username, email, is_banned, report_count in results
+                for user_id, username, email, is_banned, reports_count in results
             ],
             count=len(results),
-            min_reports_threshold=min_reports,
+        min_reports_threshold=min_reports,
         )
 
     @staticmethod
     def get_channels_with_reports_analytics(
         db: Session, min_reports: int = 1, limit: int = 20
     ) -> ChannelAnalyticsListResponse:
-        results = AdminRepository.get_channels_with_reports_analytics(
-            db, min_reports, limit
-        )
+        results = AdminRepository.get_channels_with_reports_analytics(db, min_reports, limit)
 
-        return ChannelAnalyticsListResponse(
-            analytics=[
+        analytics: list[ChannelAnalyticsResponse] = []
+        for (
+            channel_id,
+            channel_name,
+            strikes,
+            owner_username,
+            total_reports,
+            reported_videos_count,
+            unique_reporters,
+            resolved_percentage,
+        ) in results:
+            risk_level = "LOW"
+            if (total_reports or 0) >= 10 or (strikes or 0) >= 3:
+                risk_level = "HIGH"
+            elif (total_reports or 0) >= 3 or (strikes or 0) >= 1:
+                risk_level = "MEDIUM"
+
+            analytics.append(
                 ChannelAnalyticsResponse(
                     channel=ChannelInfo(
                         id=channel_id,
                         name=channel_name,
-                        strikes=strikes,
+                        strikes=int(strikes or 0),
                         owner_username=owner_username,
                     ),
                     report_stats=ReportStats(
-                        total_reports=total_reports,
-                        reported_videos_count=reported_videos_count,
-                        unique_reporters=unique_reporters,
-                        resolved_percentage=round(resolved_percentage, 2)
-                        if resolved_percentage
-                        else 0.0,
+                        total_reports=int(total_reports or 0),
+                        reported_videos_count=int(reported_videos_count or 0),
+                        unique_reporters=int(unique_reporters or 0),
+                        resolved_percentage=float(resolved_percentage or 0.0),
                     ),
-                    risk_level=(
-                        "HIGH"
-                        if total_reports >= 10 or strikes >= 2
-                        else "MEDIUM"
-                        if total_reports >= 5 or strikes >= 1
-                        else "LOW"
-                    ),
+                    risk_level=risk_level,
                 )
-                for (
-                    channel_id,
-                    channel_name,
-                    strikes,
-                    owner_username,
-                    total_reports,
-                    reported_videos_count,
-                    unique_reporters,
-                    resolved_percentage,
-                ) in results
-            ],
-            count=len(results),
+            )
+
+        return ChannelAnalyticsListResponse(
+            analytics=analytics,
+            count=len(analytics),
             min_reports_threshold=min_reports,
         )

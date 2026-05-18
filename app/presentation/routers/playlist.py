@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status, Body
 from app.db.session import DBDep
-from app.services.playlist import PlaylistService
+from app.application.playlist import PlaylistService
 
 router = APIRouter(tags=["playlist"], prefix="/playlist")
 

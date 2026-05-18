@@ -1,0 +1,36 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker Compose up (detached)
+        run: docker compose up -d
+
+      - name: List running containers
+        run: docker ps -a
+
+      - name: Run migrations
+        run: docker compose exec -T backend uv run alembic -c app/alembic.ini upgrade head
+
+      - name: Populate with test data
+        run: docker compose exec -T backend uv run python -m app.utils.populate
+
+      - name: Populate with test data
+        run: docker compose exec -w /app/app -T backend uv run pytest -v
+
+      - name: Tear down Compose
+        if: always()
+        run: docker compose down -v

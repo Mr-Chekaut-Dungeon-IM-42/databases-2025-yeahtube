@@ -3,7 +3,8 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 
-from . import routers
+from .presentation import routers
+from .presentation.exception_handlers import register_exception_handlers
 
 
 @asynccontextmanager
@@ -16,5 +17,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(lifespan=lifespan)
+register_exception_handlers(app)
 for router in routers.__all__:
     app.include_router(getattr(routers, router))
